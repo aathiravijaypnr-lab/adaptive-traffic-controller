@@ -99,3 +99,19 @@ Handles the master emergency override signal to safely stop all traffic across b
 | `rst_n` | Input | 1 bit | Active-low synchronous reset |
 | `emergency_in` | Input | 1 bit | Global emergency override switch/sensor input |
 | `emergency_hold` | Output | 1 bit | Master stop signal sent to both Junction FSMs |
+
+
+
+
+## 3. Architectural Justifications & Reset Strategy
+
+### Architectural Justifications
+* **Modular Design Principles:** Separating the system into distinct sub-modules (`junction_fsm`, `green_wave_sync`, `pedestrian_arbiter`, and `emergency_controller`) ensures clean isolation of concerns. This modularity makes debugging straightforward, enhances code reusability, and simplifies formal verification and testing.
+* **Shared Pedestrian Arbiter:** Using a single shared arbiter instead of duplicating controllers at each junction prevents hardware redundancy and centralizes fairness logic.
+* **Starvation Avoidance:** The pedestrian arbiter implements Round-Robin / First-Come First-Served fairness. If both junctions request pedestrian walk time simultaneously, the arbiter alternates priority between Junction A and Junction B, ensuring neither request waits indefinitely.
+
+---
+
+### Clocking & Reset Strategy
+* **Single Clock Domain:** All modules operate on a unified system clock (`clk`). This eliminates Clock Domain Crossing (CDC) issues, guarantees deterministic state transitions, and simplifies timing analysis across module interfaces.
+* **Synchronous Active-Low Reset (`rst_n`):** The system uses a synchronous active-low reset. Reset evaluation occurs strictly on the rising edge of the system clock, preventing false triggers caused by noise or signal glitches on the reset line. This ensures predictable and safe transitions into the initial reset state.
