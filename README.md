@@ -115,3 +115,29 @@ Handles the master emergency override signal to safely stop all traffic across b
 ### Clocking & Reset Strategy
 * **Single Clock Domain:** All modules operate on a unified system clock (`clk`). This eliminates Clock Domain Crossing (CDC) issues, guarantees deterministic state transitions, and simplifies timing analysis across module interfaces.
 * **Synchronous Active-Low Reset (`rst_n`):** The system uses a synchronous active-low reset. Reset evaluation occurs strictly on the rising edge of the system clock, preventing false triggers caused by noise or signal glitches on the reset line. This ensures predictable and safe transitions into the initial reset state.
+
+
+
+
+
+## 4. Verification Plan (Test Scenarios Matrix)
+
+The following 15 test scenarios define the functional verification suite required to validate system operation during testbench simulation.
+
+| Test ID | Test Category | Scenario Description | Expected Outcome / Result |
+| :---: | :--- | :--- | :--- |
+| **TC_01** | Reset | Apply active-low reset `rst_n = 0` during normal operation. | System immediately forces all lights to Red (`00`). |
+| **TC_02** | Reset Recovery | De-assert reset (`rst_n = 1`). | System transitions cleanly to initial state (Junction A NS Green). |
+| **TC_03** | Normal Operation | Allow Junction A to run without pedestrian/emergency intervention. | Cycles NS Green -> Yellow -> Red -> EW Green -> Yellow -> Red. |
+| **TC_04** | Normal Operation | Allow Junction B to run independently. | Cycles NS and EW light sequences within specified timing limits. |
+| **TC_05** | Green-Wave Sync | Junction A turns NS Green. | `green_wave_sync` delays for set clock cycles, then triggers Junction B NS Green. |
+| **TC_06** | Green-Wave Sync | Junction A NS Green ends. | Junction B finishes its green phase proportionally after the delay. |
+| **TC_07** | Pedestrian Request | Pedestrian button pressed at Junction A (`req_a = 1`) during EW Red. | `pedestrian_arbiter` issues `grant_a = 1`; Junction A enters Pedestrian phase. |
+| **TC_08** | Pedestrian Request | Pedestrian button pressed at Junction B (`req_b = 1`) during EW Red. | `pedestrian_arbiter` issues `grant_b = 1`; Junction B enters Pedestrian phase. |
+| **TC_09** | Pedestrian Arbitration | Simultaneous requests (`req_a = 1` and `req_b = 1` at same clock edge). | Arbiter grants one junction first, then grants the second junction on next cycle (Fairness). |
+| **TC_10** | Starvation Prevention | Junction A holds `req_a = 1` continuously. | Arbiter grants Junction A, then services Junction B's request before re-granting Junction A. |
+| **TC_11** | Emergency Override | Trigger global `emergency_in = 1` while both junctions are in Green phase. | Both Junction A and B transition to All-Red (`00`) within 2 clock cycles. |
+| **TC_12** | Emergency Override | Trigger global `emergency_in = 1` during active Pedestrian crossing. | Pedestrian grants are revoked and all traffic lights switch immediately to All-Red. |
+| **TC_13** | Emergency Recovery | De-assert `emergency_in = 0`. | System safely restarts from default initial state without light race conditions. |
+| **TC_14** | Edge Case | Pedestrian request asserted during an active Emergency signal. | Pedestrian request is ignored until emergency mode is cleared. |
+| **TC_15** | Edge Case | Rapid toggling of `sync_trigger` from Green-Wave module. | Junction B FSM filters glitches and maintains stable timing transitions. |
