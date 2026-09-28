@@ -36,3 +36,66 @@ The system is designed as a modular, single-clock digital system that controls t
 |   +-----------------------+              |  | Override    | Override    |      |
 |                                          +--+-------------+-------------+      |
 +-------------------------------------------------------------------------------+
+
+
+
+
+
+
+
+## 2. Module Interface Definitions
+
+This section details the inputs, outputs, signal widths, and functionality for each individual sub-module in the system.
+
+### Module 1: `junction_fsm` (Instantiated as Junction A and Junction B)
+Manages the finite state machine sequencing (Green -> Yellow -> Red) for North-South and East-West directions.
+
+| Port Name | Direction | Width | Purpose / Description |
+| :--- | :---: | :---: | :--- |
+| `clk` | Input | 1 bit | Global system clock |
+| `rst_n` | Input | 1 bit | Active-low synchronous reset |
+| `sync_trigger` | Input | 1 bit | Trigger signal to initiate Green phase (used by Junction B) |
+| `ped_grant` | Input | 1 bit | Grant signal allowing pedestrian crossing phase |
+| `emergency_hold` | Input | 1 bit | Override signal to force immediate transition to All-Red |
+| `ped_request` | Output | 1 bit | Crosswalk request sent to Shared Pedestrian Arbiter|
+| `ns_light` | Output | 2 bits | North-South light state (`00`=Red, `01`=Yellow, `10`=Green, `11`=Ped) |
+| `ew_light` | Output | 2 bits | East-West light state (`00`=Red, `01`=Yellow, `10`=Green, `11`=Ped) |
+| `ns_green_active` | Output | 1 bit | High when North-South direction is Green (used for Green-Wave sync) |
+
+---
+
+### Module 2: `green_wave_sync`
+Tracks the time delay after Junction A turns North-South Green and signals Junction B to start its Green phase[cite: 1].
+
+| Port Name | Direction | Width | Purpose / Description |
+| :--- | :---: | :---: | :--- |
+| `clk` | Input | 1 bit | Global system clock |
+| `rst_n` | Input | 1 bit | Active-low synchronous reset |
+| `junc_a_ns_green` | Input | 1 bit | Active signal from Junction A indicating NS Green is active |
+| `sync_trigger_b` | Output | 1 bit | Pulse output triggering Junction B's NS Green after fixed delay |
+
+---
+
+### Module 3: `pedestrian_arbiter`
+Central arbiter receiving pedestrian crossing requests from both junctions and granting them fairly.
+
+| Port Name | Direction | Width | Purpose / Description |
+| :--- | :---: | :---: | :--- |
+| `clk` | Input | 1 bit | Global system clock |
+| `rst_n` | Input | 1 bit | Active-low synchronous reset |
+| `req_a` | Input | 1 bit | Pedestrian crossing request from Junction A |
+| `req_b` | Input | 1 bit | Pedestrian crossing request from Junction B |
+| `grant_a` | Output | 1 bit | Pedestrian crossing grant sent to Junction A |
+| `grant_b` | Output | 1 bit | Pedestrian crossing grant sent to Junction B |
+
+---
+
+### Module 4: `emergency_controller`
+Handles the master emergency override signal to safely stop all traffic across both junctions.
+
+| Port Name | Direction | Width | Purpose / Description |
+| :--- | :---: | :---: | :--- |
+| `clk` | Input | 1 bit | Global system clock |
+| `rst_n` | Input | 1 bit | Active-low synchronous reset |
+| `emergency_in` | Input | 1 bit | Global emergency override switch/sensor input |
+| `emergency_hold` | Output | 1 bit | Master stop signal sent to both Junction FSMs |
