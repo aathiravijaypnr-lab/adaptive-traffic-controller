@@ -176,7 +176,7 @@ Verification was conducted in ModelSim using an automated, self-checking top-lev
 - **Constrained-Random Stress Sweep:** A 1,000-cycle randomized stimulus generator applying unpredictable pedestrian requests and traffic density fluctuations.
 
 ### 5.2 Summary of Verification Results
-'
+```text
 ==================================================================
                    AMGC TASK 5 VERIFICATION SUMMARY
 ==================================================================
@@ -192,5 +192,26 @@ TOTAL FAIL CHECKS : 0
 ------------------------------------------------------------------
                   TASK 5 VERIFICATION PASSED!
 ==================================================================
+```
 
-5.3 Simulation Waveform EvidenceAll simulation waveform artifacts are captured and archived inside the /sim directory:Normal & Adaptive Operation (sim/waveform_normal_operation.png & sim/waveform_adaptive_timing.png): Demonstrates smooth phase transitions (NS Green $\rightarrow$ NS Yellow $\rightarrow$ All-Red $\rightarrow$ EW Green $\rightarrow$ EW Yellow $\rightarrow$ All-Red) with green duration scaling proportionally to traffic_density.Emergency Override (sim/waveform_emergency_override.png): Proves that asserting emergency_override = 1 immediately forces both junctions to an All-Red safety state within $\le 2$ clock cycles.Pedestrian Arbitration (sim/waveform_ped_arbiter.png): Confirms simultaneous pedestrian requests from Junction A and Junction B are granted fairly without starvation or double-servicing.6. Bug Log & Debug AnalysisDuring system design and verification, several edge-case bugs were identified, tracked, and resolved:Bug IDPhase DiscoveredDescription / Root CauseCorrective Action / RTL FixBUG-01Task 2 SimulationTimer failed to trigger done when count_target == 0.Updated generic_timer.v to assert done = 1 immediately upon start = 1 when count_target == 0.BUG-02Task 3 IntegrationFixed-priority arbitration caused Junction B pedestrian starvation during continuous simultaneous requests.Replaced fixed priority logic in ped_arbiter.v with a round-robin state register (last_served).BUG-03Task 4 Adaptive SweepFluctuating traffic_density during active green phase caused timer target jumps and glitched transitions.Added input latching in junction_controller.v to freeze traffic_density at phase entry.7. Conclusions & Deliverables ComplianceThe Adaptive Multi-Junction Traffic Grid Controller (AMTGC) project has been successfully planned, developed, integrated, and verified in full compliance with all specification requirements.Final Checklist of Deliverables[x] Clean hierarchical Verilog RTL (/rtl)[x] Automated self-checking testbenches (/tb)[x] Simulation log and archived waveform screenshots (/sim)[x] Architecture specifications, Bug Log, Assumptions, and Technical Report (/docs)[x] Public, structured GitHub Repository with informative README.md
+### 5.3 Simulation Waveform Evidence
+
+All simulation waveform artifacts are captured and archived inside the /sim directory:Normal & Adaptive Operation (sim/waveform_normal_operation.png & sim/waveform_adaptive_timing.png): Demonstrates smooth phase transitions (NS Green $\rightarrow$ NS Yellow $\rightarrow$ All-Red $\rightarrow$ EW Green $\rightarrow$ EW Yellow $\rightarrow$ All-Red) with green duration scaling proportionally to traffic_density.Emergency Override (sim/waveform_emergency_override.png): Proves that asserting emergency_override = 1 immediately forces both junctions to an All-Red safety state within $\le 2$ clock cycles.Pedestrian Arbitration (sim/waveform_ped_arbiter.png): Confirms simultaneous pedestrian requests from Junction A and Junction B are granted fairly without starvation or double-servicing.
+
+---
+
+### 6. Bug Log & Debug Analysis
+
+During system design and verification, several edge-case bugs were identified, tracked, and resolved:
+
+|Bug ID | Phase Discovered | Description / Root Cause | Corrective Action / RTL Fix|
+| :--- | :--- | :--- | :--- |
+| BUG-01 | Task 2 Simulation | Timer failed to trigger done when count_target == 0. | Updated generic_timer.v to assert done = 1 immediately upon start = 1 when count_target == 0. |
+| BUG-02 | Task 3 Integration | Fixed-priority arbitration caused Junction B pedestrian starvation during continuous simultaneous requests. | Replaced fixed priority logic in ped_arbiter.v with a round-robin state register (last_served). |
+| BUG-03 | Task 4 Adaptive Sweep | Fluctuating traffic_density during active green phase caused timer target jumps and glitched transitions. | Added input latching in junction_controller.v to freeze traffic_density at phase entry. |
+
+---
+
+### 7. Conclusions & Deliverables Compliance
+
+The Adaptive Multi-Junction Traffic Grid Controller (AMTGC) project has been successfully planned, developed, integrated, and verified in full compliance with all specification requirements.Final Checklist of Deliverables[x] Clean hierarchical Verilog RTL (/rtl)[x] Automated self-checking testbenches (/tb)[x] Simulation log and archived waveform screenshots (/sim)[x] Architecture specifications, Bug Log, Assumptions, and Technical Report (/docs)[x] Public, structured GitHub Repository with informative README.md
