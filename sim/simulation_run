@@ -1,0 +1,124 @@
+# Reading C:/intelFPGA/18.1/modelsim_ase/tcl/vsim/pref.tcl
+project open C:/intelFPGA/18.1/amtgc_top
+# Loading project amtgc_top
+vsim -gui work.amtgc_top_tb
+# vsim -gui work.amtgc_top_tb 
+# Start time: 18:55:16 on Oct 16,2026
+# Loading work.amtgc_top_tb
+# Loading work.amtgc_top
+# Loading work.green_wave_sync
+# Loading work.ped_arbiter
+# Loading work.generic_timer
+# Loading work.junction_controller
+run -all
+# 
+# ============================================================
+# TEST 1: RESET AND RECOVERY
+# ============================================================
+# PASS: Junction A recovered to NS GREEN after reset.
+# PASS: Reset during NS GREEN returned both junctions to RESET.
+# PASS: Reset during NS YELLOW returned both junctions to RESET.
+# PASS: Reset during EW GREEN returned both junctions to RESET.
+# PASS: Reset during EW YELLOW returned both junctions to RESET.
+# PASS: Reset during PED WALK returned both junctions to RESET.
+# TEST 1 RESULT: PASS
+# 
+# ============================================================
+# TEST 2: EMERGENCY PREEMPTION SWEEP
+# ============================================================
+# PASS: Emergency preemption A reached safe emergency state, phase=001
+# PASS: Emergency preemption A reached safe emergency state, phase=010
+# PASS: Emergency preemption A reached safe emergency state, phase=011
+# PASS: Emergency preemption A reached safe emergency state, phase=100
+# PASS: Emergency preemption A reached safe emergency state, phase=101
+# PASS: Emergency preemption B reached safe emergency state, phase=001
+# PASS: Emergency preemption B reached safe emergency state, phase=010
+# PASS: Emergency preemption B reached safe emergency state, phase=011
+# PASS: Emergency preemption B reached safe emergency state, phase=100
+# PASS: Emergency preemption B reached safe emergency state, phase=101
+# TEST 2 RESULT: PASS
+# 
+# ============================================================
+# TEST 3: RAPID EMERGENCY TOGGLE
+# ============================================================
+# PASS: 100 rapid emergency toggles completed without invariant violation.
+# 
+# ============================================================
+# TEST 4: PEDESTRIAN ARBITRATION FAIRNESS
+# ============================================================
+# [SCOREBOARD] Arbitration cycles = 20
+# [SCOREBOARD] Grants A = 10
+# [SCOREBOARD] Grants B = 10
+# [SCOREBOARD] Alternation errors = 0
+# PASS: Shared pedestrian arbiter provided round-robin fairness.
+# PASS: A-only pedestrian request reached PED WALK.
+# PASS: B-only pedestrian request reached PED WALK.
+# TEST 4 RESULT: PASS=3 FAIL=0
+# 
+# ============================================================
+# TEST 5A: ADAPTIVE GREEN TIMING
+# ============================================================
+# PASS: Density=0 | Expected=5 | Measured=5
+# PASS: Density=1 | Expected=6 | Measured=6
+# PASS: Density=2 | Expected=7 | Measured=7
+# PASS: Density=3 | Expected=8 | Measured=8
+# PASS: Density=4 | Expected=9 | Measured=9
+# PASS: Density=5 | Expected=10 | Measured=10
+# PASS: Density=6 | Expected=10 | Measured=10
+# PASS: Density=7 | Expected=10 | Measured=10
+# 
+# ============================================================
+# TEST 5B: MID-GREEN DENSITY STABILITY
+# ============================================================
+# PASS: Mid-green density change did not alter current green duration. Expected=6 Measured=6
+# 
+# ============================================================
+# TEST 5D: MAXIMUM DENSITY NS GREEN
+# ============================================================
+# PASS: Junction A maximum NS green = 10.
+# DEBUG: Junction B measured duration = 6 cycles
+# PASS: Junction B maximum NS green = 10.
+# 
+# ============================================================
+# TEST 5E: MAXIMUM DENSITY EW GREEN
+# ============================================================
+# PASS: Junction A maximum EW green = 10.
+# DEBUG: Junction B measured duration = 10 cycles
+# PASS: Junction B maximum EW green = 10.
+# 
+# ============================================================
+# TEST 5C: GREEN-WAVE INTEGRITY
+# ============================================================
+# PASS: Green-wave A=0 B=0 | Offset=4 cycles
+# PASS: Green-wave A=0 B=7 | Offset=4 cycles
+# PASS: Green-wave A=3 B=5 | Offset=4 cycles
+# PASS: Green-wave A=7 B=0 | Offset=4 cycles
+# PASS: Green-wave A=7 B=7 | Offset=4 cycles
+# 
+# ============================================================
+# TEST 6: CONSTRAINED-RANDOM SYSTEM STRESS
+# ============================================================
+# PASS: 1,000 constrained-random cycles completed.
+#       Random cycles = 1000 | Checks = 1000 | New invariant violations = 0
+# 
+# 
+# ============================================================
+#              AMTGC TASK 5 VERIFICATION SUMMARY
+# ============================================================
+# 
+# TEST 1 - RESET & RECOVERY           : PASS=6 FAIL=0
+# TEST 2 - EMERGENCY PREEMPTION       : PASS=10 FAIL=0
+# TEST 3 - RAPID EMERGENCY TOGGLE     : PASS=1 FAIL=0
+# TEST 4 - PEDESTRIAN FAIRNESS        : PASS=3 FAIL=0
+# TEST 5 - ADAPTIVE + GREEN-WAVE      : PASS=18 FAIL=0
+# TEST 6 - CONSTRAINED RANDOM         : PASS=1 FAIL=0
+# 
+# TOTAL PASS CHECKS       = 39
+# TOTAL FAIL CHECKS       = 0
+# 
+# ============================================================
+#              TASK 5 VERIFICATION PASSED
+# ============================================================
+# ** Note: $finish    : C:/intelFPGA/18.1/amtgc_top_tb.v(2493)
+#    Time: 24416 ns  Iteration: 0  Instance: /amtgc_top_tb
+
