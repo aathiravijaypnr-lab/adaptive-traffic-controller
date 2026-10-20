@@ -87,60 +87,62 @@ ped_req_b -------------------->|     |                                          
 ---
 
 ## 3. Finite State Machine (FSM) Design
-
+Each junction controller operates using a Moore Finite State Machine governed by the exact state encodings implemented in `junction_controller.v`:
 Each junction controller operates using a 6-state Moore Finite State Machine encoded with robust parameter constants:
 
               +-------------------+
-              |   S_RESET (000)   | <--- (rst_n == 0)
+              |   ST_RESET (000)   | <--- (rst_n == 0)
               +-------------------+
                         |
                         v
               +-------------------+
-              |  S_NS_GREEN (001) |
+              |  ST_NS_GREEN (001) |
               +-------------------+
                         |
                         v
               +-------------------+
-              | S_NS_YELLOW (010) |
+              | ST_NS_YELLOW (010) |
               +-------------------+
                         |
                         v
               +-------------------+
-              |  S_ALL_RED1 (011) |
+              |  ST_ALL_RED1 (011) |
               +-------------------+
                         |
         +---------------+---------------+
         |                               |
         v (ped_grant asserted)          v (normal cycle)
 +-------------------+           +-------------------+
-|  S_PED_WALK (110) |           |  S_EW_GREEN (100) |
+|  ST_PED_WALK (110) |           |  ST_EW_GREEN (100) |
 +-------------------+           +-------------------+
 |                               |
 +---------------+---------------+
 |
 v
 +-------------------+
-| S_EW_YELLOW (101) |
+| ST_EW_YELLOW (101) |
 +-------------------+
 |
 v
 +-------------------+
-|  S_ALL_RED2 (111) |
+|  ST_ALL_RED2 (111) |
 +-------------------+
 |
-+---> (Loop back to S_NS_GREEN)
++---> (Loop back to ST_NS_GREEN)
 
 
-### 3.1 State Definitions & Safety Rules
-1. **`S_RESET (3'b000)`**: Default safe initialization state on reset. All lights output Red (low).
-2. **`S_NS_GREEN (3'b001)`**: North-South directions given green passage. Active duration equals calculated dynamic green time.
-3. **`S_NS_YELLOW (3'b010)`**: North-South yellow clearance interval (`YELLOW_TIME`).
-4. **`S_ALL_RED1 (3'b011)`**: mandatory non-zero safety clearance gap where all directions display Red before transitioning to EW Green or Pedestrian Phase.
-5. **`S_EW_GREEN (3'b100)`**: East-West directions given green passage.
-6. **`S_EW_YELLOW (3'b101)`**: East-West yellow clearance interval.
-7. **`S_PED_WALK (3'b110)`**: Pedestrian crossing phase entered safely following an All-Red safety gap when a pedestrian grant is acknowledged.
-8. **`S_ALL_RED2 (3'b111)`**: Secondary All-Red safety clearance before cycling back to NS Green.
 
+### 3.1 State Encodings & Definitions
+| State Name | Binary Encoding | Description |
+| :--- | :--- | :--- |
+| **`ST_RESET`** | `3'b000` | Initial safe reset state; sets all signal lights to Red. |
+| **`ST_NS_GREEN`** | `3'b001` | North-South green signal active (duration governed by dynamic adaptive timer). |
+| **`ST_NS_YELLOW`** | `3'b010` | North-South yellow clearance interval (`YELLOW_TIME`). |
+| **`ST_ALL_RED_1`**| `3'b011` | Mandatory All-Red safety clearance gap between NS transition and EW/Pedestrian phase. |
+| **`ST_EW_GREEN`** | `3'b100` | East-West green signal active. |
+| **`ST_EW_YELLOW`** | `3'b101` | East-West yellow clearance interval (`YELLOW_TIME`). |
+| **`ST_ALL_RED_2`**| `3'b110` | Secondary All-Red safety clearance before cycling back to North-South. |
+| **`ST_PED_WALK`** | `3'b111` | Pedestrian crossing phase entered safely following arbitration and safety gaps. |
 ---
 
 ---
