@@ -1,106 +1,284 @@
-Adaptive Multi-Junction Traffic Grid Controller (AMTGC)
-![Verilog HDL](https://img.shields.io/badge/Language-Verilog%20HDL-blue.svg)
-![Verification](https://img.shields.io/badge/Verification-ModelSim%20Self--Checking-success.svg)
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)
+# Adaptive Multi-Junction Traffic Grid Controller (AMTGC)
+
+![Language](https://img.shields.io/badge/Language-Verilog%20HDL-blue.svg)
+![Simulation](https://img.shields.io/badge/Simulation-ModelSim-success.svg)
+![Verification](https://img.shields.io/badge/Verification-39%20PASS%20%7C%200%20FAIL-brightgreen.svg)
+![Project](https://img.shields.io/badge/Project-VLSI%20Design-orange.svg)
+
 ---
-1. Project Overview
-The Adaptive Multi-Junction Traffic Grid Controller (AMTGC) is a modular, single-clock digital hardware design written in Verilog HDL. It coordinates two 4-way traffic intersections (Junction A and Junction B) with:
-Green-Wave Synchronization: Automatically offsets Junction B's North–South green phase relative to Junction A using a configurable delay line.
-Traffic-Adaptive Timing: Dynamically scales green phase durations based on a 3-bit `traffic_density` input while strictly clamping values between safe `MIN_GREEN_TIME` and `MAX_GREEN_TIME` bounds.
-Shared Fair Pedestrian Arbiter: Resolves crosswalk requests via a round-robin scheduling policy to completely prevent starvation.
-System-Wide Emergency Override: Forces all junction controllers into a safe all-red state within bounded clock cycles upon activation.
+
+## 1. Project Overview
+
+The **Adaptive Multi-Junction Traffic Grid Controller (AMTGC)** is a modular digital traffic-control system implemented in Verilog HDL. It coordinates two four-way traffic intersections, Junction A and Junction B, using independent junction controllers and timers.
+
+### Key Features
+
+- **Adaptive Green Timing:** Adjusts green-phase duration according to traffic density, within configurable minimum and maximum limits.
+- **Green-Wave Synchronization:** Uses Junction A's state information to generate a synchronization trigger for Junction B.
+- **Shared Pedestrian Arbitration:** Coordinates pedestrian requests from both junctions through a shared arbiter.
+- **Emergency Handling:** Distributes an emergency override to both junction controllers and gates relevant top-level signals.
+- **Finite State Machine Control:** Uses an eight-state Moore-style FSM in each junction controller.
+- **Modular RTL Design:** Separates junction control, timing, pedestrian arbitration, and synchronization into individual modules.
+
+The design is simulated and verified using ModelSim.
+
 ---
-2. Repository Directory Structure
+
+## 2. Repository Directory Structure
+
 ```text
 adaptive-traffic-controller/
+│
 ├── rtl/
-│   ├── amtgc_top.v                 # Top-level integration module
-│   ├── junction_controller.v       # 8-state Moore FSM & adaptive green logic
-│   ├── generic_timer.v             # Standalone parameterized timing module
-│   ├── ped_arbiter.v               # Shared round-robin pedestrian arbiter
-│   └── green_wave_sync.v           # Green-wave synchronization block
+│   ├── amtgc_top.v
+│   ├── junction_controller.v
+│   ├── generic_timer.v
+│   ├── ped_arbiter.v
+│   └── green_wave_sync.v
+│
 ├── tb/
-│   └── amtgc_top_tb.v              # Unified self-checking testbench (39 assertions)
+│   └── amtgc_top_tb.v
+│
 ├── docs/
-│   ├── technical_report.md         # Comprehensive engineering technical report
-│   ├── bug_log.md                  # Development bug tracking and resolutions log
-│   ├── assumptions.md              # Architectural assumptions and design constraints
-│   ├── self_attestation_checklist.md # Self-attestation compliance checklist
-│   ├── amtgc_top_block_diagram.png # Top-level architecture block diagram
-│   └── junction_controller_diagram.png # Junction controller internal schematic
-└── sim/
-    ├── transcript                    # ModelSim execution log
-    └── waveforms/                    # Simulation waveform screenshots (.png)
+│   ├── technical_report.md
+│   ├── bug_log.md
+│   ├── assumptions.md
+│   ├── self_attestation_checklist.md
+│   ├── amtgc_top_block_diagram.png
+│   └── junction_controller_diagram.png
+│
+├── sim/
+│   ├── transcript
+│   └── waveforms/
+│
+└── README.md
 ```
+
+
+
 ---
-3. Top-Level Architecture & Signal Interfaces
-```mermaid
-graph TB
-    subgraph amtgc_top [AMTGC Top-Level Integration]
-        direction TB
-        JA[Junction A Controller] -->|Timer Limit / Start| TA[Generic Timer A]
-        TA -->|Timer Expired| JA
-        
-        JB[Junction B Controller] -->|Timer Limit / Start| TB[Generic Timer B]
-        TB -->|Timer Expired| JB
-        
-        JA -->|state_a| GWS[Green Wave Synchronization]
-        GWS -->|sync_trigger| JB
-        
-        JA -->|ped_ready_a| PA[Shared Pedestrian Arbiter]
-        JB -->|ped_ready_b| PA
-        PA -->|ped_grant_a & b| JA
-        PA -->|ped_grant_b| JB
-        
-        EO[Emergency Override] -->|emg_active| JA
-        EO -->|emg_active| JB
-    end
+
+## 3. System Architecture
+
+The top-level module, `amtgc_top`, integrates the two junction controllers, their independent timers, the shared pedestrian arbiter, the green-wave synchronization module, and emergency-control logic.
+
+### Module Descriptions
+
+| Module | Description |
+|---|---|
+| `amtgc_top.v` | Integrates the system components and manages top-level signal connections. |
+| `junction_controller.v` | Implements the eight-state FSM, adaptive green-time calculation, phase transitions, and traffic/pedestrian outputs. |
+| `generic_timer.v` | Provides timer functionality for each junction. |
+| `ped_arbiter.v` | Coordinates pedestrian requests from both junctions. |
+| `green_wave_sync.v` | Observes Junction A's state and generates a synchronization trigger for Junction B. |
+
+### System Operation
+
+1. Both junction controllers receive the common clock and reset signals, along with their respective traffic-density inputs.
+2. Each controller communicates with its own generic timer.
+3. The shared pedestrian arbiter coordinates pedestrian requests and grants.
+4. The green-wave synchronization module observes `state_a` and generates `sync_trigger_raw`.
+5. The top-level module gates the synchronization trigger during an emergency before passing `sync_trigger` to Junction B.
+6. The emergency override is distributed to both junction controllers and used in relevant top-level gating logic.
+
+Refer to the following diagram,
+
+`docs/amtgc_top_block_diagram.png`
+
+---
+
+## 4. Top-Level Interface
+
+The following table describes the principal ports of `amtgc_top`.
+
+| Signal | Direction | Width | Description |
+|---|---|---|---|
+| `clk` | Input | 1 bit | Common system clock. |
+| `rst_n` | Input | 1 bit | Active-low asynchronous reset. |
+| `ped_req_a` | Input | 1 bit | Pedestrian request for Junction A. |
+| `ped_req_b` | Input | 1 bit | Pedestrian request for Junction B. |
+| `emergency_override` | Input | 1 bit | System-wide emergency override. |
+| `density_a` | Input | 3 bits | Traffic-density input for Junction A. |
+| `density_b` | Input | 3 bits | Traffic-density input for Junction B. |
+| `state_a` | Output | 3 bits | Encoded FSM state of Junction A. |
+| `state_b` | Output | 3 bits | Encoded FSM state of Junction B. |
+| `sync_trigger` | Output | 1 bit | Observable, emergency-gated synchronization trigger. |
+
+The top-level module also exposes traffic-light outputs and pedestrian-walk outputs for both junctions. Refer to `rtl/amtgc_top.v` for the complete port list.
+
+---
+
+## 5. Adaptive Green-Time Calculation
+
+The green duration is calculated using the following expression:
+
+```text
+green_time = MIN_GREEN_TIME
+           + traffic_density * GREEN_EXTENSION
 ```
-Key Interface Ports (`amtgc_top.v`)
-Port Name	Direction	Width	Description
-`clk`	Input	1 bit	Global system clock
-`rst_n`	Input	1 bit	Active-low asynchronous reset
-`ped_req_a`, `ped_req_b`	Inputs	1 bit each	Pedestrian crossing requests
-`emergency_override`	Input	1 bit	System-wide emergency stop signal
-`density_a`, `density_b`	Inputs	3 bits each	Traffic density inputs (0–7)
-`state_a`, `state_b`	Outputs	3 bits each	Encoded FSM current states
-`sync_trigger`	Output	1 bit	Observable green-wave synchronization pulse
+
+The calculated value is clamped between the configured minimum and maximum green times.
+
+### Default Parameters
+
+| Parameter | Default Value | Description |
+|---|---:|---|
+| `MIN_GREEN_TIME` | 5 | Minimum green-phase duration. |
+| `MAX_GREEN_TIME` | 10 | Maximum green-phase duration. |
+| `GREEN_EXTENSION` | 1 | Additional duration per density level. |
+
+### Green Time by Traffic Density
+
+| Traffic Density | Green Time |
+|---:|---:|
+| 0 | 5 |
+| 1 | 6 |
+| 2 | 7 |
+| 3 | 8 |
+| 4 | 9 |
+| 5 | 10 |
+| 6 | 10 |
+| 7 | 10 |
+
+The controller samples the calculated duration when entering a green phase.
+
+These values represent timer counts or simulation time units according to the timer implementation and clock configuration; they should not be interpreted as seconds unless explicitly defined by the design.
+
 ---
-4. Software Prerequisites & Simulation Tools
-To compile and simulate this design, you will need:
-Simulator: ModelSim (Intel FPGA Starter Edition, Mentor Graphics, or QuestaSim) supporting Verilog-2001.
-Command Line Tools: Git and a terminal (Bash/PowerShell).
+
+## 6. Junction Controller FSM
+
+Each junction controller implements an eight-state finite state machine.
+
+| State | Encoding | Description |
+|---|---|---|
+| `ST_RESET` | `000` | Initial reset state. |
+| `ST_NS_GREEN` | `001` | North–south green phase. |
+| `ST_NS_YELLOW` | `010` | North–south yellow phase. |
+| `ST_EW_GREEN` | `011` | East–west green phase. |
+| `ST_EW_YELLOW` | `100` | East–west yellow phase. |
+| `ST_PED_WALK` | `101` | Pedestrian-walk phase. |
+| `ST_ALL_RED` | `110` | All vehicle green/yellow outputs are inactive. |
+| `ST_EMERGENCY` | `111` | Emergency-handling state. |
+
+The FSM uses timer-expiration events and additional control conditions to determine phase transitions.
+
+Emergency handling has priority in the state register. While `emg_active` is asserted, the controller disables vehicle green/yellow and pedestrian-walk outputs.
+
+The controller does not expose dedicated red-light output ports. The all-red condition is represented by the vehicle green/yellow outputs being inactive.
+
 ---
-5. Step-by-Step Simulation Instructions
-Clone the repository and run the simulation using ModelSim from your terminal:
+
+## 7. Prerequisites
+
+The following tools are required to compile and simulate the project:
+
+- **ModelSim:** Intel FPGA Edition, QuestaSim, or another compatible Verilog simulator.
+- **Git:** For cloning the repository.
+- **Terminal:** Bash, PowerShell, or a compatible command-line environment.
+
+---
+
+## 8. Simulation Instructions
+
+### Step 1: Clone the Repository
+
 ```bash
-# 1. Clone the public repository
 git clone https://github.com/aathiravijaypnr-lab/adaptive-traffic-controller.git
 cd adaptive-traffic-controller
-
-# 2. Create a working simulation directory
-mkdir -p work
-vlib work
-
-# 3. Compile the RTL source files and unified testbench
-vlog -work work rtl/*.v tb/*.v
-
-# 4. Launch the ModelSim simulator with self-checking assertions enabled
-vsim -c -voptargs="+acc" work.amtgc_top_tb -do "run -all; quit"
 ```
+
+### Step 2: Create the Simulation Library
+
+Run the following command in the ModelSim Transcript window:
+
+```tcl
+vlib work
+```
+
+### Step 3: Compile the RTL and Testbench
+
+```tcl
+vlog rtl/*.v tb/*.v
+```
+
+### Step 4: Run the Testbench
+
+```tcl
+vsim -c -voptargs="+acc" work.amtgc_top_tb
+run -all
+quit
+```
+
+These commands assume that the testbench is named `amtgc_top_tb` and the source files are located in the directories shown above. Run the commands from the repository root and adjust them if your actual project structure differs.
+
+### Step 5: Inspect Waveforms
+
+For graphical waveform verification:
+
+1. Open the project in ModelSim.
+2. Compile the RTL and testbench.
+3. Load `amtgc_top_tb`.
+4. Add the relevant signals to the Wave window.
+5. Run the simulation.
+6. Inspect state transitions, traffic-light outputs, timer behavior, pedestrian arbitration, synchronization, and emergency handling.
+
+Save relevant waveform screenshots and the simulation transcript in the appropriate `sim/` directories if required by the assignment.
+
 ---
-6. Verification Summary & Test Matrix
-The unified self-checking testbench (`amtgc_top_tb.v`) executes 39 automated assertions distributed across 6 test suites, followed by a 1,000-cycle constrained-random stress test:
-Test Suite	Focus Area	Status / Result
-Test 1	Reset & Recovery (Phase coverage)	PASS (6/6 checks)
-Test 2	Emergency Preemption Sweep	PASS (10/10 checks)
-Test 3	Rapid Emergency Toggling (100 cycles)	PASS (1/1 checks)
-Test 4	Pedestrian Round-Robin Fairness	PASS (3/3 checks)
-Test 5	Adaptive Timing & Green-Wave Integrity	PASS (18/18 checks)
-Test 6	1,000-Cycle Constrained-Random Stress Test	PASS (Zero invariants violated)
-TOTAL	Comprehensive System Verification	39 PASS / 0 FAIL
+
+## 9. Verification Summary
+
+The latest simulation summary reported for this project is **39 PASS and 0 FAIL**.
+
+| Test Suite | Verification Focus | Reported Result |
+|---|---|---|
+| Test 1 | Reset and recovery | PASS — 6 checks |
+| Test 2 | Emergency preemption | PASS — 10 checks |
+| Test 3 | Rapid emergency toggling | PASS — 1 check |
+| Test 4 | Pedestrian arbitration fairness | PASS — 3 checks |
+| Test 5 | Adaptive timing and green-wave integrity | PASS — 18 checks |
+| Test 6 | 1,000-cycle constrained-random stress test | PASS — zero new invariant violations |
+| **Total** | **Reported testbench summary** | **39 PASS / 0 FAIL** |
+
+These results describe the reported testbench execution. They do not establish formal verification, physical-hardware validation, or correctness under every possible input sequence.
+
+Refer to the committed simulation transcript and waveform evidence for the corresponding results.
+
 ---
-7. Author & Acknowledgments
-Author: Aathira Vijay
-Institution: Electronics and Communication Engineering
-Project Reference: Adaptive Multi-Junction Traffic Grid Controller (AMTGC) VLSI Design Course.
+
+## 10. Project Documentation
+
+The `docs/` directory contains the supporting project documents, when included:
+
+| File | Purpose |
+|---|---|
+| `technical_report.md` | Project overview, architecture, RTL design, FSM operation, verification methodology, simulation results, and conclusion. |
+| `bug_log.md` | Development issues, their causes, and resolutions. |
+| `assumptions.md` | Design assumptions, constraints, and implementation decisions. |
+| `self_attestation_checklist.md` | Submission and compliance checklist. |
+| `amtgc_top_block_diagram.png` | Top-level system architecture diagram. |
+| `junction_controller_diagram.png` | Junction-controller block diagram. |
+
+---
+
+## 11. Limitations and Scope
+
+AMTGC is a digital RTL design evaluated through simulation. The reported results do not constitute validation on physical traffic-light hardware or a real road network.
+
+The behavior of the design depends on the implemented FSM transitions, timer semantics, arbitration logic, synchronization logic, parameter values, and testbench coverage.
+
+Deployment in a real traffic-control environment would require additional safety analysis, hardware integration, and system-level validation.
+
+---
+
+## 12. Author and Project Reference
+
+- **Author:** Aathira Vijay
+- **Field of Study:** Electronics and Communication Engineering
+- **Project:** Adaptive Multi-Junction Traffic Grid Controller (AMTGC)
+- **Project Context:** VLSI design using Verilog HDL and ModelSim
+
+---
+
+*For implementation details, refer to the RTL source files. For verification evidence, refer to the committed simulation transcript and waveforms.*
