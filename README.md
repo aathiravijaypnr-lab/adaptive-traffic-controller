@@ -210,7 +210,7 @@ run -all
 quit
 ```
 
-These commands assume that the testbench is named `amtgc_top_tb` and the source files are located in the directories shown above. Run the commands from the repository root and adjust them if your actual project structure differs.
+
 
 ### Step 5: Inspect Waveforms
 
@@ -223,7 +223,7 @@ For graphical waveform verification:
 5. Run the simulation.
 6. Inspect state transitions, traffic-light outputs, timer behavior, pedestrian arbitration, synchronization, and emergency handling.
 
-Save relevant waveform screenshots and the simulation transcript in the appropriate `sim/` directories if required by the assignment.
+
 
 ---
 
@@ -241,9 +241,7 @@ The latest simulation summary reported for this project is **39 PASS and 0 FAIL*
 | Test 6 | 1,000-cycle constrained-random stress test | PASS — zero new invariant violations |
 | **Total** | **Reported testbench summary** | **39 PASS / 0 FAIL** |
 
-These results describe the reported testbench execution. They do not establish formal verification, physical-hardware validation, or correctness under every possible input sequence.
 
-Refer to the committed simulation transcript and waveform evidence for the corresponding results.
 
 ---
 
