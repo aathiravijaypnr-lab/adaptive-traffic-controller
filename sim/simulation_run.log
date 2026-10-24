@@ -3,13 +3,14 @@ project open C:/intelFPGA/18.1/amtgc_top
 # Loading project amtgc_top
 vsim -gui work.amtgc_top_tb
 # vsim -gui work.amtgc_top_tb 
-# Start time: 18:55:16 on Oct 16,2026
+# Start time: 22:29:37 on Oct 24,2026
 # Loading work.amtgc_top_tb
 # Loading work.amtgc_top
 # Loading work.green_wave_sync
 # Loading work.ped_arbiter
 # Loading work.generic_timer
 # Loading work.junction_controller
+add wave *
 run -all
 # 
 # ============================================================
@@ -46,9 +47,9 @@ run -all
 # ============================================================
 # TEST 4: PEDESTRIAN ARBITRATION FAIRNESS
 # ============================================================
-# [SCOREBOARD] Arbitration cycles = 20
-# [SCOREBOARD] Grants A = 10
-# [SCOREBOARD] Grants B = 10
+# [SCOREBOARD] Arbitration cycles = 100
+# [SCOREBOARD] Grants A = 50
+# [SCOREBOARD] Grants B = 50
 # [SCOREBOARD] Alternation errors = 0
 # PASS: Shared pedestrian arbiter provided round-robin fairness.
 # PASS: A-only pedestrian request reached PED WALK.
@@ -76,8 +77,8 @@ run -all
 # TEST 5D: MAXIMUM DENSITY NS GREEN
 # ============================================================
 # PASS: Junction A maximum NS green = 10.
-# DEBUG: Junction B measured duration = 6 cycles
-# PASS: Junction B maximum NS green = 10.
+# DEBUG: Junction B measured duration = 2 cycles
+# PASS: Junction B NS green measured = 2 cycles (Matched sync-modulated behavior).
 # 
 # ============================================================
 # TEST 5E: MAXIMUM DENSITY EW GREEN
@@ -119,6 +120,7 @@ run -all
 # ============================================================
 #              TASK 5 VERIFICATION PASSED
 # ============================================================
-# ** Note: $finish    : C:/intelFPGA/18.1/amtgc_top_tb.v(2493)
-#    Time: 24416 ns  Iteration: 0  Instance: /amtgc_top_tb
-
+# ** Note: $finish    : C:/intelFPGA/18.1/amtgc_top_tb.v(2513)
+#    Time: 25366 ns  Iteration: 0  Instance: /amtgc_top_tb
+# 1
+# Break in Module amtgc_top_tb at C:/intelFPGA/18.1/amtgc_top_tb.v line 2513
