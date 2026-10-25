@@ -1,42 +1,32 @@
-# Adaptive Multi-Junction Traffic Grid Controller (AMTGC)
-## Self-Attestation Checklist
+# AMTGC — Self-Attestation Checklist
 
-This document serves as a formal self-verification declaration by the author, confirming that all functional requirements, coding standards, verification targets, and repository guidelines have been meticulously reviewed and fulfilled prior to final submission.
+Check each statement against the final submitted repository and submission form. A checked item below reflects the contents of the provided ZIP or recorded simulation evidence; items requiring an external access check remain unchecked.
 
----
+## Repository and documentation
+- [x] Five RTL modules are present in `rtl/`.
+- [x] The integrated testbench and two standalone testbenches are present in `tb/`.
+- [x] Technical report, assumptions, bug log, self-attestation, and two diagrams are present in `docs/`.
+- [x] Simulation log and four waveform PNG files are present in `sim/`.
+- [ ] The final repository tree and filenames match the assignment's exact prescribed layout (confirm against assignment).
+- [ ] The GitHub repository is publicly accessible without signing in.
 
-### 1. Repository Structure & Organization
-- [x] Repository visibility is set to **Public** for accessibility.
-- [x] Folder structure strictly adheres to the prescribed layout: `/rtl`, `/tb`, `/docs`, and `/sim`.
-- [x] All Verilog source files are placed inside `/rtl` with proper `.v` extensions.
-- [x] All testbenches are stored inside `/tb`.
-- [x] Required documentation (`technical_report.md`, `bug_log.md`, `assumptions.md`, and this checklist) are located inside `/docs`.
-- [x] Simulation transcript logs and clean waveform screenshots (`.png`) are archived inside `/sim`.
+## RTL and architecture
+- [x] One `clk` domain is used; `rst_n` is active low, with asynchronous reset in controllers/timers/synchronizer and synchronous reset in the pedestrian arbiter.
+- [x] Two instances of `junction_controller` use the same default timing parameters and different `IS_JUNCTION_B` settings.
+- [x] Two independent 32-bit `generic_timer` instances are used in the top-level design.
+- [x] Adaptive timing uses `MIN_GREEN_TIME`, `MAX_GREEN_TIME`, and `GREEN_EXTENSION` with density values 0–7.
+- [x] Shared pedestrian arbitration uses readiness inputs and round-robin `turn` priority.
+- [x] Emergency output masking and green-wave synchronization are implemented.
 
-### 2. RTL Design & Coding Standards
-- [x] All modules use a **single clock domain** (`clk`) with a synchronous active-low reset (`rst_n`).
-- [x] True hardware parameterization is implemented using parameters (`GREEN_TIME`, `YELLOW_TIME`, `RED_TIME`, `COUNTER_WIDTH`) avoiding hardcoded magic numbers.
-- [x] The **`generic_timer.v`** module remains completely standalone and reusable without modification.
-- [x] Sequential logic exclusively uses non-blocking (`<=`) assignments, while combinational logic uses blocking (`=`) assignments.
-- [x] All FSM `case` statements include an explicit `default` case to prevent unintended latch inference.
-- [x] A non-zero All-Red safety clearance gap is strictly enforced between conflicting traffic directions.
+## Recorded verification
+- [x] `sim/simulation_run.log` reports 39 PASS and 0 FAIL.
+- [x] The integrated log records 1,000 randomized cycles with zero new invariant violations.
+- [x] Screenshots cover normal operation, emergency, pedestrian requests, and adaptive timing.
+- [ ] All required screenshot filenames and demonstration-video specifications match the assignment (confirm before submission).
+- [ ] The demonstration video opens and plays without login.
+- [ ] All mandatory submission form fields and links have been verified.
 
-### 3. System Integration & Advanced Features
-- [x] Top-level integration (`amtgc_top.v`) instantiates two junctions with distinct timing parameter configurations.
-- [x] Green-wave coordination link successfully synchronizes Junction B's North-South green start relative to Junction A.
-- [x] Centralized pedestrian arbiter (`ped_arbiter.v`) implements a fair round-robin policy, eliminating starvation during simultaneous requests.
-- [x] Global emergency override successfully forces both junctions into a safe All-Red state within bounded clock cycles.
-- [x] Traffic-adaptive green timing dynamically scales based on `traffic_density` while strictly respecting `MIN_GREEN` and `MAX_GREEN` safety bounds.
 
-### 4. Verification & Simulation
-- [x] Verification was executed using a unified, self-checking testbench (`amtgc_top_tb.v`).
-- [x] Automated assertions and scoreboards verified 39 distinct checks with zero failures.
-- [x] Constrained-random stress testing was executed successfully over 1,000 cycles.
-- [x] Waveform screenshots verifying normal cycling, emergency override, pedestrian arbitration, and adaptive timing are archived in `/sim`.
 
-### 5. Final Compliance Declaration
-I hereby attest that the code and documentation submitted in this repository represent my original work, have been thoroughly simulated and verified, and meet all professional engineering standards specified for this project.
-
-**Author:** Aathira Vijay  
-**Date:** October 18, 2026  
-**Status:** Complete & Verified
+**Author:** Aathira Vijay
+**Status:** Pending final public-link and submission-requirement checks
