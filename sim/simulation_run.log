@@ -1,9 +1,16 @@
 # Reading C:/intelFPGA/18.1/modelsim_ase/tcl/vsim/pref.tcl
 project open C:/intelFPGA/18.1/amtgc_top
 # Loading project amtgc_top
+# Compile of generic_timer.v was successful.
+# Compile of ped_arbiter.v was successful.
+# Compile of amtgc_top_tb.v was successful.
+# Compile of amtgc_top.v was successful.
+# Compile of green_wave_sync.v was successful.
+# Compile of junction_controller.v was successful.
+# 6 compiles, 0 failed with no errors.
 vsim -gui work.amtgc_top_tb
 # vsim -gui work.amtgc_top_tb 
-# Start time: 22:29:37 on Oct 24,2026
+# Start time: 23:34:48 on Oct 25,2026
 # Loading work.amtgc_top_tb
 # Loading work.amtgc_top
 # Loading work.green_wave_sync
