@@ -1,33 +1,24 @@
-# Adaptive Multi-Junction Traffic Grid Controller (AMTGC)
-## Bug Log & Debugging History
+# AMTGC — Debugging and Verification Notes
 
-This document tracks all functional anomalies, edge-case bugs, and architectural flaws discovered during Verilog RTL development and ModelSim simulation, along with their root causes and corrective actions.
+This document records implementation concerns and the final mechanisms that address them. The final repository alone does **not** establish the exact history of earlier bugs or when each was discovered; therefore these entries should not be read as verified claims about earlier failing revisions.
 
----
+| ID | Engineering concern | Final RTL handling | Evidence |
+| :--- | :--- | :--- | :--- |
+| DBG-01 | Zero-target timer and restart edge cases | `generic_timer.v` uses `zero_done_flag`, `previous_target`, and registered `done` | Timer RTL and standalone timer testbench |
+| DBG-02 | Competing pedestrian requests | `ped_arbiter.v` uses the `turn` register, readiness checks, and mutually exclusive registered grants | Integrated fairness test: 50 A / 50 B, 0 alternation errors |
+| DBG-03 | Density changes during an active green phase | `junction_controller.v` stores the computed duration in `sampled_green_time` on green entry | Integrated adaptive timing and mid-phase stability tests |
+| DBG-04 | Emergency and synchronization interaction | Top-level masks `sync_trigger_raw` using `~emergency_override`; controllers gate outputs and enter `ST_EMERGENCY` | Integrated emergency tests and waveforms |
 
-### Bug Summary Table
+## Technical details
 
-| Bug ID | Task Discovered | Description / Root Cause | Corrective Action / RTL Fix | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **BUG-01** | Task 2 (Timer) | The generic timer failed to assert the `done` signal when configured with `count_target == 0`, causing the FSM to stall indefinitely in zero-duration safety states. | Updated `generic_timer.v` combinatorial logic to immediately assert `done = 1` on the next clock cycle when `start` is high and `count_target == 0`. | **Resolved** |
-| **BUG-02** | Task 3 (Integration) | Using a fixed-priority scheme in the pedestrian arbiter caused Junction B pedestrian requests to suffer permanent starvation when continuous simultaneous requests arrived. | Replaced the fixed priority logic in `ped_arbiter.v` with a rotating round-robin state register (`last_served`), ensuring alternating priority grants. | **Resolved** |
-| **BUG-03** | Task 4 (Adaptive Timing)| Fluctuating `traffic_density` values updated mid-phase caused the active timer target to jump, resulting in corrupted green light durations and waveform glitches. | Implemented an input-latching register in `junction_controller.v` that samples `traffic_density` exclusively at the exact transition into a green phase. | **Resolved** |
+### Timer behavior
+`done` is a **registered pulse**, not a combinational `assign`. For a zero target, the timer generates one pulse per activation using `zero_done_flag`. Deasserting `start` clears its counting state; a changed target also restarts the count.
 
----
+### Pedestrian arbitration
+The implementation uses `turn`, **not** `last_served`. Grants depend on `req_a`/`req_b` and `ready_a`/`ready_b`; `ped_walk_a` and `ped_walk_b` are produced by the junction controllers, not by the arbiter.
 
-### Detailed Bug Analysis & Engineering Notes
+### Adaptive duration
+The implementation stores the **computed green duration** in `sampled_green_time`, rather than storing the raw density in a `current_density` register.
 
-#### BUG-01: Zero-Target Timer Lockup
-- **Symptom:** During initial timer module testing, setting `count_target = 0` resulted in the FSM freezing because `done` never went high.
-- **Root Cause:** The countdown comparator only checked when the internal decrement register reached zero from a positive number, missing the edge case where the target itself starts at zero.
-- **Fix:** Added an explicit conditional check inside `generic_timer.v`: `assign done = (count_target == 0 && start) ? 1'b1 : (internal_count == 0);`.
-
-#### BUG-02: Pedestrian Starvation under Heavy Load
-- **Symptom:** In integration testing under simultaneous multi-cycle requests, Junction A received all crosswalk grants while Junction B requests timed out.
-- **Root Cause:** A hardcoded priority check (`if (req_a) grant_a = 1; else grant_b = 1;`) always favored Junction A.
-- **Fix:** Introduced a `last_served` toggle register inside `ped_arbiter.v`. When both requests are high, the arbiter grants the opposite junction of whoever was last served, completely eliminating starvation.
-
-#### BUG-03: Mid-Phase Density Jitter
-- **Symptom:** Green light countdown timers abruptly shortened or lengthened halfway through a phase when testbench traffic density stimuli changed.
-- **Root Cause:** Continuous combinatorial evaluation of `traffic_density` fed directly into the active timer reload register.
-- **Fix:** Locked the density value into a local register (`current_density`) at the exact clock edge the FSM enters `S_NS_GREEN` or `S_EW_GREEN`, holding it steady for the remainder of that phase.
+## Verification status
+The committed `sim/simulation_run.log` reports **39 PASS / 0 FAIL**, including a **1,000-cycle randomized run with zero new invariant violations**. This log documents the observed tests; it is not exhaustive formal verification.
