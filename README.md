@@ -270,7 +270,15 @@ Deployment in a real traffic-control environment would require additional safety
 
 ---
 
-## 12. Author and Project Reference
+## 12.## Project Demonstration Video
+
+The demonstration covers the AMTGC architecture, Verilog RTL implementation, ModelSim simulation, and waveform verification.
+
+**Watch the demo:** [AMTGC Demo Video](https://drive.google.com/file/d/1rWQTwJc1i9ZbSHjDYYRyGAYAQaz3_4Ql/view?usp=drive_link)
+
+---
+
+## 13. Author and Project Reference
 
 - **Author:** Aathira Vijay
 - **Field of Study:** Electronics and Communication Engineering
