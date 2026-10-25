@@ -142,8 +142,7 @@ The calculated value is clamped between the configured minimum and maximum green
 
 The controller samples the calculated duration when entering a green phase.
 
-These values represent timer counts or simulation time units according to the timer implementation and clock configuration; they should not be interpreted as seconds unless explicitly defined by the design.
-
+These values represent timer counts or simulation time units according to the timer implementation and clock configuration.
 ---
 
 ## 6. Junction Controller FSM
@@ -175,7 +174,6 @@ The following tools are required to compile and simulate the project:
 
 - **ModelSim:** Intel FPGA Edition, QuestaSim, or another compatible Verilog simulator.
 - **Git:** For cloning the repository.
-- **Terminal:** Bash, PowerShell, or a compatible command-line environment.
 
 ---
 
@@ -205,9 +203,8 @@ vlog rtl/*.v tb/*.v
 ### Step 4: Run the Testbench
 
 ```tcl
-vsim -c -voptargs="+acc" work.amtgc_top_tb
+vsim work.amtgc_top_tb
 run -all
-quit
 ```
 
 
@@ -229,7 +226,7 @@ For graphical waveform verification:
 
 ## 9. Verification Summary
 
-The latest simulation summary reported for this project is **39 PASS and 0 FAIL**.
+The simulation summary reported for this project is **39 PASS and 0 FAIL**.
 
 | Test Suite | Verification Focus | Reported Result |
 |---|---|---|
