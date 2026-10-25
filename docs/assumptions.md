@@ -1,44 +1,36 @@
-# Adaptive Multi-Junction Traffic Grid Controller (AMTGC)
-## System Assumptions & Design Boundaries
+# AMTGC — System Assumptions and Design Boundaries
 
-This document outlines the operational assumptions, timing bounds, parameter configurations, and hardware constraints established for the AMTGC system architecture.
+## Clock and reset
 
----
+- The design uses one `clk` clock domain.
+- `rst_n` is active low. `junction_controller`, `generic_timer`, and `green_wave_sync` use asynchronous assertion of reset (`posedge clk or negedge rst_n`). `ped_arbiter` uses synchronous reset (`posedge clk`). Therefore reset behavior is **not identical in every module**.
+- The design is a simulation-oriented RTL controller, not a certified physical traffic system.
 
-## 1. Clocking & Reset Strategy
-- **Single Clock Domain:** All synchronous sequential elements across all modules (`generic_timer`, `junction_controller`, `ped_arbiter`, `amtgc_top`) operate on a single global clock signal (`clk`). There are no asynchronous clock domain crossings (CDC) or multi-clock FIFOs required.
-- **Synchronous Reset:** The system utilizes a synchronous active-low reset (`rst_n`). All FSM state registers and timer countdown values initialize safely to their default states on the active clock edge when `rst_n` is low.
+## Default configuration
 
----
+| Parameter | Junction A | Junction B | Meaning |
+| :--- | ---: | ---: | :--- |
+| `MIN_GREEN_TIME` | 5 | 5 | Minimum green count |
+| `MAX_GREEN_TIME` | 10 | 10 | Maximum green count |
+| `GREEN_EXTENSION` | 1 | 1 | Added count per density level |
+| `YELLOW_TIME` | 3 | 3 | Yellow count |
+| `RED_TIME` | 8 | 8 | All-red count |
+| `PEDESTRIAN_TIME` | 6 | 6 | Pedestrian count |
+| `IS_JUNCTION_B` | 0 | 1 | Enables Junction B synchronization behavior |
+| Timer `COUNTER_WIDTH` | 32 | 32 | Timer width as instantiated in `amtgc_top` |
 
-## 2. Timing Parameter Configurations
-To demonstrate true hardware reusability without modifying RTL source code, the two junctions are instantiated with the following default timing parameters:
+The top-level `SYNC_OFFSET_TIME` default is **4**. Parameter values represent clock-count targets, not physical seconds.
 
-| Parameter Name | Junction A Value | Junction B Value | Description |
-| :--- | :--- | :--- | :--- |
-| `GREEN_TIME` | 10 clock cycles | 8 clock cycles | Baseline green signal duration |
-| `YELLOW_TIME` | 3 clock cycles | 3 clock cycles | Yellow clearance signal duration |
-| `RED_TIME` | 2 clock cycles | 2 clock cycles | Minimum mandatory All-Red safety gap |
-| `PED_TIME` | 5 clock cycles | 5 clock cycles | Pedestrian crosswalk walk phase duration |
-| `COUNTER_WIDTH` | 8 bits | 8 bits | Bit-width for timer countdown registers (supports up to 255 cycles) |
+## Traffic density and timing
 
----
+- `density_a[2:0]` and `density_b[2:0]` independently represent unsigned density levels 0–7.
+- Each controller computes `MIN_GREEN_TIME + traffic_density * GREEN_EXTENSION`, clamped to `[MIN_GREEN_TIME, MAX_GREEN_TIME]`. With defaults, the targets are **5, 6, 7, 8, 9, 10, 10, 10**.
+- The computed green target is stored in `sampled_green_time` at green-phase entry, avoiding mid-phase timer-target changes.
+- The programmed count target is not a guarantee of a particular measured output pulse length in every synchronized scenario. The integrated log reports a two-cycle Junction B NS-green observation in one test; see `sim/simulation_run.log`.
 
-## 3. Traffic-Adaptive Timing Boundaries
-- **Density Range:** The `traffic_density` input is assumed to be a 3-bit unsigned integer ranging from `3'b000` (density 0) to `3'b111` (density 7).
-- **Safety Bounds:** 
-  - **Minimum Green Limit:** Even under zero traffic density (`0`), the green phase is guaranteed never to drop below `MIN_GREEN_TIME` (set to 5 cycles).
-  - **Maximum Green Limit:** Even under maximum traffic density (`7`), the green phase is strictly capped at `MAX_GREEN_TIME` (set to 20 cycles) to prevent arterial gridlock and ensure regular phase rotation.
-- **Sampling Window:** Traffic density is sampled precisely once per phase transition (at the entry of a green state) to prevent mid-count jitter or timer glitching.
+## Coordination and safety assumptions
 
----
-
-## 4. Green-Wave Synchronization Link
-- **Offset Mechanism:** Junction B's North-South green phase initiation is coupled to Junction A's North-South green phase start via a configured delay offset (`green_wave_sync`).
-- **Bounded Tolerance:** The coordination link assumes an arterial propagation delay of 4 clock cycles, ensuring vehicle platoons pass through Junction B immediately as its green signal activates.
-
----
-
-## 5. Emergency Override & Pedestrian Rules
-- **Override Precedence:** The global `emergency_override` signal has absolute highest priority. Upon assertion, it immediately overrides all ongoing FSM states, disables pedestrian walks, and forces all junction lights into a safe All-Red state within $\le 2$ clock cycles.
-- **Fairness Policy:** The shared `ped_arbiter` assumes a round-robin arbitration scheme with state history memory (`last_served`), ensuring that simultaneous pedestrian requests from both junctions alternate priority to guarantee zero starvation.
+- `green_wave_sync` detects Junction A entering NS green and emits a delayed pulse; Junction B also observes its own safety/state conditions before entering NS green.
+- The shared `ped_arbiter` receives requests and readiness inputs and uses the `turn` register for round-robin priority when both are eligible. The integrated fairness test reports 50 grants per junction over 100 arbitration cycles; this is evidence for the tested scenario, not a formal proof for all possible stimuli.
+- `emergency_override` masks traffic/pedestrian outputs and gates pedestrian requests and the synchronization trigger at the top level. The controllers enter the emergency state on a clock edge and resume through all-red handling.
+- There are no dedicated red output pins. All-red means vehicle green/yellow and pedestrian walk indications are inactive.
