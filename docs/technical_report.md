@@ -3,217 +3,385 @@
 
 **Author:** Aathira Vijay  
 **Repository:** [adaptive-traffic-controller](https://github.com/aathiravijaypnr-lab/adaptive-traffic-controller)  
-**Date:** October 18, 2026  
-**Document Version:** 1.0  
+**Date:** October 25, 2026  
+**Document Version:** 1
 
 ---
 
 ## Executive Abstract
 
-This report presents the architectural design, Verilog RTL implementation, and full self-checking simulation verification of an Adaptive Multi-Junction Traffic Grid Controller (AMTGC). The system manages two 4-way traffic intersections (Junction A and Junction B) within a synchronized traffic grid. Key features include dynamic traffic-density-based green timing adjustments, a green-wave synchronization offset between North-South green phases to optimize traffic flow, a shared round-robin pedestrian arbiter to eliminate pedestrian starvation, and an immediate system-wide emergency override that safely forces all traffic signals to an all-red state within a bounded number of clock cycles. 
+This report presents the architecture, Verilog RTL implementation, and ModelSim verification of the Adaptive Multi-Junction Traffic Grid Controller (AMTGC). The system coordinates two four-way traffic intersections, Junction A and Junction B, using reusable hardware modules.
 
-The design is fully parameterized and adheres to a strict single clock domain with synchronous active-low reset strategy. Verification was executed in ModelSim using an automated, self-checking testbench comprising 39 assertions, directed test scenarios, and a 1,000-cycle constrained-random stress sweep with zero invariant violations.
+The design supports traffic-density-based adaptive green timing, green-wave synchronization, centralized round-robin pedestrian arbitration, and a system-wide emergency override. Independent parameterized timers control the traffic phases of both junctions.
 
----
-
-## 1. Introduction & System Specifications
-
-### 1.1 Project Overview
-Modern urban traffic management requires coordinated signal logic to minimize congestion, handle variable traffic density, ensure pedestrian safety, and accommodate emergency vehicles. The AMTGC system unifies two traffic junctions (Junction A and Junction B) into a coordinated hardware system built entirely in parameterized Verilog RTL.
-
-### 1.2 System Specifications & Requirements
-- **Single Clock Domain:** Fully synchronous logic operating on `clk` with active-low synchronous reset `rst_n`.
-- **4-Way Traffic Signal Control:** Each junction sequences North-South (NS) and East-West (EW) directions through `GREEN`, `YELLOW`, and `ALL-RED` safety gap phases.
-- **Parametric Timing:** Modular FSM controllers configured using parameters (`GREEN_TIME`, `YELLOW_TIME`, `RED_TIME`, `PED_TIME`) avoiding hardcoded magic numbers.
-- **Traffic-Adaptive Green Duration:** Dynamic green light extension calculated based on a 3-bit `traffic_density` input (values 0–7), strictly bounded by `MIN_GREEN_TIME` and `MAX_GREEN_TIME`.
-- **Green-Wave Synchronization Link:** Junction B delays its NS Green phase relative to Junction A's NS Green start by a fixed, predictable cycle offset to facilitate smooth vehicle flow.
-- **Shared Pedestrian Arbitration:** A centralized `ped_arbiter` serves pedestrian walk requests from both junctions using a fair round-robin policy to prevent starvation.
-- **Emergency Override:** System-wide `emergency_override` input forcing both junctions to an All-Red safety state within $\le 2$ clock cycles upon assertion.
+The integrated design was verified using a self-checking ModelSim testbench. The reported simulation completed **39 PASS checks, 0 FAIL checks**, and a **1,000-cycle randomized stress test with no reported invariant violations**.
 
 ---
 
-## 2. System Architecture & Module Interface Contracts
+## 1. Project Overview and System Specifications
 
-### 2.1 Top-Level Architecture Overview
-The system is structured hierarchically inside the top-level wrapper module `amtgc_top.v`. It integrates two instances of `junction_controller.v` (Junction A and Junction B), two standalone instances of `generic_timer.v`, a central `ped_arbiter.v`, a dedicated `green_wave_sync.v` block, and top-level emergency override gating logic.
+### 1.1 Introduction
 
-+-------------------------------------------------------------+
-                              |                         amtgc_top                           |
-                              |                                                             |
-clk, rst_n ------------------->|---> Junction A (junction_controller)                        |
-emergency_override ----------->|     +---> timer_inst (generic_timer)                        |
-|     |                                                       |
-traffic_density_a [2:0] ------>|-----> NS / EW / Pedestrian Phase Logic ------+                |
-ped_req_a -------------------->|                                            |                |
-|                                            v                |
-|                                   +-----------------+       |
-|                                   |   ped_arbiter   |       |
-|                                   |  (Round-Robin)  |       |
-|                                   +-----------------+       |
-traffic_density_b [2:0] ------>|-----> NS / EW / Pedestrian Phase Logic ------^                |
-ped_req_b -------------------->|     |                                                       |
-|     +---> timer_inst (generic_timer)                        |
-|---> Junction B (junction_controller)                        |
-|                                                             |
-|---> green_wave_sync                                         |
-+-------------------------------------------------------------+
+Modern traffic management systems require coordinated signal control to manage changing traffic density, pedestrian requests, and emergency conditions.
 
+The AMTGC project implements a two-junction traffic control system entirely in Verilog RTL. Both junctions use the same reusable controller module, with separate timing resources and shared coordination logic.
 
-### 2.2 Why Modules Exist Separately
-1. **`generic_timer.v`**: Designed as a pure, standalone hardware counter module with parameter `COUNTER_WIDTH`. Keeping timing counter registers out of the state machine prevents logic bloat and guarantees true modular reusability.
-2. **`junction_controller.v`**: Implements the Moore Finite State Machine governing phase transitions for a single 4-way intersection. It computes dynamic count targets based on traffic density and delegates actual cycle counting to `generic_timer`.
-3. **`ped_arbiter.v`**: Centralizes crosswalk request handling. Having a shared arbiter rather than separate controllers ensures fair mutual exclusion when pedestrians attempt to cross both junctions simultaneously.
-4. **`green_wave_sync.v`**: Manages the delay offset trigger between Junction A's North-South green start and Junction B's North-South green start, ensuring arterial progression across the grid.
+### 1.2 Functional Features
 
-### 2.3 Module Interface Specification
+- **Dual-Junction Control:** Independent North–South (NS) and East–West (EW) traffic phases at Junction A and Junction B.
+- **Adaptive Green Timing:** Green duration adjusts according to a three-bit traffic density input.
+- **Green-Wave Synchronization:** Junction B receives a delayed synchronization trigger derived from Junction A's NS-green phase.
+- **Shared Pedestrian Arbitration:** A centralized round-robin arbiter manages requests from both junctions.
+- **Emergency Override:** A common emergency signal suppresses traffic and pedestrian indications and forces both controllers into emergency handling.
+- **Parameterized Timing:** Configurable timing parameters support reuse without changing the FSM logic.
+- **Modular RTL Architecture:** Controllers, timers, pedestrian arbitration, and synchronization are implemented in separate modules.
 
-#### Top-Level `amtgc_top.v` Interface
-| Signal Name | Direction | Bit Width | Description |
-| :--- | :--- | :--- | :--- |
-| `clk` | Input | 1 | Global system clock domain |
-| `rst_n` | Input | 1 | Synchronous active-low system reset |
-| `emergency_override` | Input | 1 | Global override forcing all directions to All-Red |
-| `ped_req_a` | Input | 1 | Pedestrian crosswalk button request for Junction A |
-| `ped_req_b` | Input | 1 | Pedestrian crosswalk button request for Junction B |
-| `traffic_density_a` | Input | 3 | Traffic density level (0–7) for Junction A |
-| `traffic_density_b` | Input | 3 | Traffic density level (0–7) for Junction B |
-| `ns_green_a`, `ns_yellow_a` | Output | 1 | North-South traffic light outputs for Junction A |
-| `ew_green_a`, `ew_yellow_a` | Output | 1 | East-West traffic light outputs for Junction A |
-| `ped_walk_a` | Output | 1 | Pedestrian crosswalk grant light output for Junction A |
-| `ns_green_b`, `ns_yellow_b` | Output | 1 | North-South traffic light outputs for Junction B |
-| `ew_green_b`, `ew_yellow_b` | Output | 1 | East-West traffic light outputs for Junction B |
-| `ped_walk_b` | Output | 1 | Pedestrian crosswalk grant light output for Junction B |
+### 1.3 Clock and Reset
+
+All modules operate in a single clock domain using `clk`.
+
+The active-low reset input is `rst_n`. The junction controllers, generic timers, and green-wave synchronizer use asynchronous active-low reset. The pedestrian arbiter samples reset synchronously on the rising clock edge.
 
 ---
 
-## 3. Finite State Machine (FSM) Design
-Each junction controller operates using a Moore Finite State Machine governed by the exact state encodings implemented in `junction_controller.v`:
-Each junction controller operates using a 6-state Moore Finite State Machine encoded with robust parameter constants:
+## 2. System Architecture and RTL Design
 
-              +-------------------+
-              |   ST_RESET (000)   | <--- (rst_n == 0)
-              +-------------------+
-                        |
-                        v
-              +-------------------+
-              |  ST_NS_GREEN (001) |
-              +-------------------+
-                        |
-                        v
-              +-------------------+
-              | ST_NS_YELLOW (010) |
-              +-------------------+
-                        |
-                        v
-              +-------------------+
-              |  ST_ALL_RED1 (011) |
-              +-------------------+
-                        |
-        +---------------+---------------+
-        |                               |
-        v (ped_grant asserted)          v (normal cycle)
-+-------------------+           +-------------------+
-|  ST_PED_WALK (110) |           |  ST_EW_GREEN (100) |
-+-------------------+           +-------------------+
-|                               |
-+---------------+---------------+
-|
-v
-+-------------------+
-| ST_EW_YELLOW (101) |
-+-------------------+
-|
-v
-+-------------------+
-|  ST_ALL_RED2 (111) |
-+-------------------+
-|
-+---> (Loop back to ST_NS_GREEN)
+### 2.1 Top-Level Architecture
 
+The top-level module `amtgc_top.v` integrates the following modules:
 
+| RTL Module | Instances | Purpose |
+| :--- | :---: | :--- |
+| `junction_controller.v` | 2 | Controls traffic phases at Junction A and Junction B |
+| `generic_timer.v` | 2 | Provides independent phase timing |
+| `ped_arbiter.v` | 1 | Coordinates pedestrian requests |
+| `green_wave_sync.v` | 1 | Generates the delayed synchronization trigger |
 
-### 3.1 State Encodings & Definitions
-| State Name | Binary Encoding | Description |
+**Architecture block diagram:**
+
+![AMTGC Top-Level Architecture](amtgc_top_block_diagram.png)
+
+*Figure 1: Top-level AMTGC architecture showing the two junction controllers, independent timers, shared pedestrian arbiter, and green-wave synchronization module.*
+
+The architecture follows these principal signal paths:
+
+1. Each junction controller communicates with its own generic timer using `timer_start`, `timer_limit`, and `timer_expired`.
+2. Junction A's FSM state is monitored by `green_wave_sync`.
+3. The synchronization module produces a delayed trigger for Junction B.
+4. The shared pedestrian arbiter receives requests and readiness signals and generates grants for the junction controllers.
+5. The global emergency input reaches both controllers and masks pedestrian requests and the synchronization output.
+
+### 2.2 Top-Level Interface Specification
+
+| Signal | Direction | Width | Description |
+| :--- | :--- | :---: | :--- |
+| `clk` | Input | 1 | Common system clock |
+| `rst_n` | Input | 1 | Active-low reset |
+| `ped_req_a` | Input | 1 | Junction A pedestrian request |
+| `ped_req_b` | Input | 1 | Junction B pedestrian request |
+| `emergency_override` | Input | 1 | Global emergency control |
+| `density_a` | Input | 3 | Junction A traffic density |
+| `density_b` | Input | 3 | Junction B traffic density |
+| `state_a` | Output | 3 | Junction A FSM state |
+| `state_b` | Output | 3 | Junction B FSM state |
+| `ns_green_a` | Output | 1 | Junction A NS green |
+| `ns_yellow_a` | Output | 1 | Junction A NS yellow |
+| `ew_green_a` | Output | 1 | Junction A EW green |
+| `ew_yellow_a` | Output | 1 | Junction A EW yellow |
+| `ped_walk_a` | Output | 1 | Junction A pedestrian walk |
+| `ns_green_b` | Output | 1 | Junction B NS green |
+| `ns_yellow_b` | Output | 1 | Junction B NS yellow |
+| `ew_green_b` | Output | 1 | Junction B EW green |
+| `ew_yellow_b` | Output | 1 | Junction B EW yellow |
+| `ped_walk_b` | Output | 1 | Junction B pedestrian walk |
+| `sync_trigger` | Output | 1 | Observable synchronization pulse |
+
+The design does not expose separate red-light output pins. An all-red interval is represented by all vehicle green/yellow and pedestrian walk outputs being inactive.
+
+### 2.3 RTL Module Descriptions
+
+#### 2.3.1 Generic Timer
+
+The `generic_timer.v` module implements a reusable parameterized counter.
+
+Its main interface includes:
+
+| Signal | Direction | Purpose |
 | :--- | :--- | :--- |
-| **`ST_RESET`** | `3'b000` | Initial safe reset state; sets all signal lights to Red. |
-| **`ST_NS_GREEN`** | `3'b001` | North-South green signal active (duration governed by dynamic adaptive timer). |
-| **`ST_NS_YELLOW`** | `3'b010` | North-South yellow clearance interval (`YELLOW_TIME`). |
-| **`ST_ALL_RED_1`**| `3'b011` | Mandatory All-Red safety clearance gap between NS transition and EW/Pedestrian phase. |
-| **`ST_EW_GREEN`** | `3'b100` | East-West green signal active. |
-| **`ST_EW_YELLOW`** | `3'b101` | East-West yellow clearance interval (`YELLOW_TIME`). |
-| **`ST_ALL_RED_2`**| `3'b110` | Secondary All-Red safety clearance before cycling back to North-South. |
-| **`ST_PED_WALK`** | `3'b111` | Pedestrian crossing phase entered safely following arbitration and safety gaps. |
----
+| `clk` | Input | Clock |
+| `rst_n` | Input | Active-low reset |
+| `start` | Input | Enables counting |
+| `count_target` | Input | Required count duration |
+| `done` | Output | Completion pulse |
+
+The timer supports configurable counter widths, target changes, stop/restart operation, and zero-target handling.
+
+#### 2.3.2 Junction Controller
+
+The `junction_controller.v` module implements an eight-state traffic control FSM.
+
+Each controller determines traffic phase transitions, adaptive green durations, pedestrian phases, emergency behavior, and the timer count target.
+
+Both Junction A and Junction B are instantiated from the same RTL module. The `IS_JUNCTION_B` parameter enables the additional synchronization behavior required at Junction B.
+
+#### 2.3.3 Pedestrian Arbiter
+
+The `ped_arbiter.v` module receives pedestrian requests and junction readiness signals.
+
+It uses a round-robin `turn` register to alternate priority when both junctions are eligible, preventing simultaneous grants.
+
+#### 2.3.4 Green-Wave Synchronizer
+
+The `green_wave_sync.v` module detects Junction A entering the NS-green state.
+
+After a configurable delay, it generates a one-cycle synchronization pulse for Junction B.
 
 ---
 
-## 4. Implementation Details & Adaptive Logic
+## 3. Finite State Machine Design
 
-### 4.1 Parameterization & Hardware Reusability
-Both traffic junctions are instantiated from the exact same `junction_controller.v` module inside `amtgc_top.v`. True parameterization is demonstrated by applying different timing parameters to each junction without altering any RTL code:
-- **Junction A:** `GREEN_TIME = 10`, `YELLOW_TIME = 3`, `RED_TIME = 2`, `PED_TIME = 5`
-- **Junction B:** `GREEN_TIME = 8`, `YELLOW_TIME = 3`, `RED_TIME = 2`, `PED_TIME = 5`
+Each junction controller implements eight encoded states.
 
-### 4.2 Traffic-Adaptive Green Duration
-To optimize traffic flow, `junction_controller` dynamically calculates the required green cycle duration based on the 3-bit `traffic_density` input (range 0 to 7):
-$$\text{Calculated Green Time} = \text{MIN\_GREEN\_TIME} + (\text{traffic\_density} \times \text{SCALE\_FACTOR})$$
+### 3.1 FSM State Table
 
-To guarantee safety and prevent direction starvation or unstable cycling:
-- **Minimum Bound (`MIN_GREEN_TIME`):** Ensured even when `traffic_density == 0`.
-- **Maximum Bound (`MAX_GREEN_TIME`):** Strictly enforced as a cap even if density demands exceed safety limits.
-- **Stable Sampling:** The `traffic_density` input is sampled exclusively at the start of a green phase to prevent mid-count target instability.
+| State | Encoding | Function |
+| :--- | :---: | :--- |
+| `ST_RESET` | `3'b000` | Reset state with inactive traffic outputs |
+| `ST_NS_GREEN` | `3'b001` | North–South green phase |
+| `ST_NS_YELLOW` | `3'b010` | North–South yellow phase |
+| `ST_EW_GREEN` | `3'b011` | East–West green phase |
+| `ST_EW_YELLOW` | `3'b100` | East–West yellow phase |
+| `ST_PED_WALK` | `3'b101` | Pedestrian crossing phase |
+| `ST_ALL_RED` | `3'b110` | All-red safety interval |
+| `ST_EMERGENCY` | `3'b111` | Emergency override state |
 
-### 4.3 Centralized Fair Pedestrian Arbitration
-The `ped_arbiter.v` module resolves crosswalk requests using a fair round-robin arbitration policy with state memory (`last_served`).
-- If simultaneous requests arrive (`ped_req_a == 1` and `ped_req_b == 1`), the arbiter alternates priority to guarantee that neither junction suffers starvation.
-- Requests arriving during active yellow or all-red phases are registered in request flip-flops and serviced during the next safe pedestrian window.
+### 3.2 Normal State Transitions
 
----
+The normal phase sequence is:
 
-## 5. Verification Methodology & Simulation Results
+`ST_RESET` → `ST_ALL_RED` → `ST_NS_GREEN` → `ST_NS_YELLOW` → `ST_ALL_RED`
 
-### 5.1 Verification Strategy
-Verification was conducted in ModelSim using an automated, self-checking top-level testbench (`tb/amtgc_top_tb.v`). The testbench integrates:
-- **Automated Scoreboards & Assertions:** 39 dedicated assertion checks evaluating valid state encoding, all-red safety gaps, green-wave delay bounds, and emergency override response times.
-- **Constrained-Random Stress Sweep:** A 1,000-cycle randomized stimulus generator applying unpredictable pedestrian requests and traffic density fluctuations.
+After the NS-yellow clearance interval, the controller selects the appropriate next phase according to its internal flags and pedestrian request status.
 
-### 5.2 Summary of Verification Results
-```text
-==================================================================
-                   AMGC TASK 5 VERIFICATION SUMMARY
-==================================================================
-TEST 1 - RESET & RECOVERY              : PASS=6  FAIL=0
-TEST 2 - EMERGENCY PREEMPTION          : PASS=10 FAIL=0
-TEST 3 - RAPID EMERGENCY TOGGLE        : PASS=1  FAIL=0
-TEST 4 - PEDESTRIAN FAIRNESS           : PASS=3  FAIL=0
-TEST 5 - ADAPTIVE + GREEN-WAVE         : PASS=18 FAIL=0
-TEST 6 - CONSTRAINED RANDOM            : PASS=1  FAIL=0
-------------------------------------------------------------------
-TOTAL PASS CHECKS : 39
-TOTAL FAIL CHECKS : 0
-------------------------------------------------------------------
-                  TASK 5 VERIFICATION PASSED!
-==================================================================
-```
+The normal EW sequence is:
 
-### 5.3 Simulation Waveform Evidence
+`ST_EW_GREEN` → `ST_EW_YELLOW` → `ST_ALL_RED` → `ST_NS_GREEN`
 
-All simulation waveform artifacts are captured and archived inside the /sim directory:Normal & Adaptive Operation (sim/waveform_normal_operation.png & sim/waveform_adaptive_timing.png): Demonstrates smooth phase transitions (NS Green $\rightarrow$ NS Yellow $\rightarrow$ All-Red $\rightarrow$ EW Green $\rightarrow$ EW Yellow $\rightarrow$ All-Red) with green duration scaling proportionally to traffic_density.Emergency Override (sim/waveform_emergency_override.png): Proves that asserting emergency_override = 1 immediately forces both junctions to an All-Red safety state within $\le 2$ clock cycles.Pedestrian Arbitration (sim/waveform_ped_arbiter.png): Confirms simultaneous pedestrian requests from Junction A and Junction B are granted fairly without starvation or double-servicing.
+A pedestrian walk phase may be inserted after a safe all-red interval when an eligible pedestrian request has been accepted.
+
+Junction B additionally waits for the synchronization condition before entering NS green when required.
+
+### 3.3 All-Red Safety State
+
+The design uses one reusable `ST_ALL_RED` state rather than separate all-red states for NS-to-EW and EW-to-NS transitions.
+
+Internal control flags determine the next phase. The all-red timer must complete before the controller exits this state.
+
+### 3.4 Emergency State
+
+When `emergency_override` is asserted:
+
+- Green, yellow, and pedestrian walk outputs are suppressed immediately through combinational gating.
+- Both junction controllers enter `ST_EMERGENCY` on the next rising clock edge.
+- The synchronization output is masked.
+- After emergency release, the controllers return through `ST_ALL_RED` before resuming traffic operation.
+
+The FSM uses state-based phase decoding with an additional emergency output mask.
 
 ---
 
-### 6. Bug Log & Debug Analysis
+## 4. Adaptive Timing and Synchronization
 
-During system design and verification, several edge-case bugs were identified, tracked, and resolved:
+### 4.1 Timing Parameters
 
-|Bug ID | Phase Discovered | Description / Root Cause | Corrective Action / RTL Fix|
-| :--- | :--- | :--- | :--- |
-| BUG-01 | Task 2 Simulation | Timer failed to trigger done when count_target == 0. | Updated generic_timer.v to assert done = 1 immediately upon start = 1 when count_target == 0. |
-| BUG-02 | Task 3 Integration | Fixed-priority arbitration caused Junction B pedestrian starvation during continuous simultaneous requests. | Replaced fixed priority logic in ped_arbiter.v with a round-robin state register (last_served). |
-| BUG-03 | Task 4 Adaptive Sweep | Fluctuating traffic_density during active green phase caused timer target jumps and glitched transitions. | Added input latching in junction_controller.v to freeze traffic_density at phase entry. |
+| Parameter | Default Value | Purpose |
+| :--- | ---: | :--- |
+| `MIN_GREEN_TIME` | 5 | Minimum green duration |
+| `MAX_GREEN_TIME` | 10 | Maximum green duration |
+| `GREEN_EXTENSION` | 1 | Green extension per density level |
+| `YELLOW_TIME` | 3 | Yellow duration |
+| `RED_TIME` | 8 | All-red duration |
+| `PEDESTRIAN_TIME` | 6 | Pedestrian walk duration |
+| `SYNC_OFFSET_TIME` | 4 | Synchronization delay |
+
+Both junction controllers use the same default timing parameters. Their adaptive green durations can differ because their traffic density inputs are independent.
+
+### 4.2 Adaptive Green-Time Calculation
+
+The controller computes the green count target using:
+
+`Calculated Green Time = MIN_GREEN_TIME + (traffic_density × GREEN_EXTENSION)`
+
+The result is limited to the configured minimum and maximum values.
+
+With the default parameters:
+
+| Traffic Density | Green Count Target |
+| ---: | ---: |
+| 0 | 5 |
+| 1 | 6 |
+| 2 | 7 |
+| 3 | 8 |
+| 4 | 9 |
+| 5 | 10 |
+| 6 | 10 |
+| 7 | 10 |
+
+The green count target is sampled when entering the green phase. Changes in traffic density during an active green phase do not modify the stored target.
+
+### 4.3 Green-Wave Synchronization
+
+The green-wave synchronization module monitors Junction A's FSM state.
+
+When Junction A enters `ST_NS_GREEN`, the synchronizer starts its configured delay and generates a pulse for Junction B.
+
+Junction B uses the synchronization pulse, or a retained pending synchronization event, when its all-red interval has completed and it is ready to enter NS green.
+
+The integrated testbench reported the expected four-cycle offset in five tested synchronization scenarios.
+
+### 4.4 Shared Pedestrian Arbitration
+
+The shared pedestrian arbiter receives requests from both junctions.
+
+Readiness signals are derived from the junction states, and arbitration occurs when the corresponding requests and readiness conditions are satisfied.
+
+The arbiter uses a `turn` register to alternate priority when both junctions are eligible.
+
+The top-level fairness test recorded:
+
+| Measurement | Result |
+| :--- | ---: |
+| Arbitration cycles | 100 |
+| Junction A grants | 50 |
+| Junction B grants | 50 |
+| Alternation errors | 0 |
+
+These results demonstrate the observed fairness behavior in the tested scenario.
 
 ---
 
-### 7. Conclusions & Deliverables Compliance
+## 5. Verification Methodology
 
-The Adaptive Multi-Junction Traffic Grid Controller (AMTGC) project has been successfully planned, developed, integrated, and verified in full compliance with all specification requirements.Final Checklist of Deliverables[x] Clean hierarchical Verilog RTL (/rtl)[x] Automated self-checking testbenches (/tb)[x] Simulation log and archived waveform screenshots (/sim)[x] Architecture specifications, Bug Log, Assumptions, and Technical Report (/docs)[x] Public, structured GitHub Repository with informative README.md
+### 5.1 Simulation Environment
+
+The integrated AMTGC system was verified using ModelSim and the self-checking top-level testbench:
+
+`tb/amtgc_top_tb.v`
+
+The verification strategy combined directed functional testing and randomized stimulus.
+
+### 5.2 Test Scenarios
+
+The testbench covered:
+
+1. Reset and recovery behavior.
+2. Emergency override during different traffic phases.
+3. Rapid emergency assertion and release.
+4. Pedestrian arbitration fairness.
+5. Adaptive green-time calculation.
+6. Green-wave synchronization.
+7. Randomized traffic and pedestrian conditions.
+
+### 5.3 Simulation Results
+
+| Test Scenario | PASS | FAIL |
+| :--- | ---: | ---: |
+| Reset and Recovery | 6 | 0 |
+| Emergency Preemption | 10 | 0 |
+| Rapid Emergency Toggle | 1 | 0 |
+| Pedestrian Fairness | 3 | 0 |
+| Adaptive Timing and Green-Wave | 18 | 0 |
+| Constrained-Random Stress | 1 | 0 |
+| **Total** | **39** | **0** |
+
+**Final Integrated Verification Result: 39 PASS / 0 FAIL**
+
+The randomized test executed 1,000 simulation cycles and reported no invariant violations.
+
+### 5.4 Simulation Waveform Evidence
+
+The repository contains the following simulation evidence:
+
+| File | Purpose |
+| :--- | :--- |
+| `sim/simulation_run.log` | Integrated ModelSim simulation transcript |
+| `sim/waveform_normal_operation.png` | Normal traffic signal operation |
+| `sim/waveform_emergency_override.png` | Emergency override behavior |
+| `sim/waveform_ped_arbiter.png` | Pedestrian arbitration behavior |
+
+These waveform files support the integrated verification results. The final submission must use the exact filenames required by the assignment.
+
+---
+
+## 6. Challenges Faced and Debugging
+
+### 6.1 Timer Edge Cases
+
+The timer design required careful handling of zero-count targets, timer restart behavior, target changes, and one-cycle completion pulses.
+
+The final implementation uses counter and target-tracking logic to handle these conditions.
+
+### 6.2 Pedestrian Arbitration Fairness
+
+A centralized arbiter was used to avoid independent pedestrian controllers making conflicting grant decisions.
+
+Round-robin selection provides alternating priority when both junctions are eligible.
+
+### 6.3 Adaptive Timing Stability
+
+Changing traffic density during an active green phase could otherwise alter the timer target.
+
+The controller therefore stores the calculated green duration when entering a green phase.
+
+### 6.4 Synchronization and Emergency Coordination
+
+The synchronization logic must coordinate Junction B without bypassing its all-red safety interval.
+
+The top-level design also masks synchronization and pedestrian request signals during emergency operation.
+
+### 6.5 Verification Timing
+
+The verification process required careful alignment of testbench checks with clock edges, registered outputs, and timer completion pulses.
+
+The integrated testbench ultimately reported 39 successful checks with no failures.
+
+Additional debugging details are maintained separately in `docs/bug_log.md`.
+
+---
+
+## 7. Conclusion
+
+The Adaptive Multi-Junction Traffic Grid Controller demonstrates a modular Verilog RTL implementation of coordinated traffic control across two intersections.
+
+The design integrates:
+
+- Two reusable traffic junction controllers.
+- Two independent parameterized timers.
+- Adaptive green timing based on traffic density.
+- A shared round-robin pedestrian arbiter.
+- Green-wave synchronization.
+- System-wide emergency override handling.
+
+The integrated ModelSim verification reported **39 PASS checks, 0 FAIL checks**, and no reported invariant violations during the 1,000-cycle randomized test.
+
+The project includes RTL source files, verification evidence, architectural documentation, and supporting submission materials. Final submission readiness is subject to confirmation of the required repository structure, screenshots, demonstration video, and publicly accessible links.
+
+---
+
+## 8. Project Deliverables
+
+| Deliverable | Repository Location |
+| :--- | :--- |
+| RTL source files | `rtl/` |
+| Integrated testbench | `tb/amtgc_top_tb.v` |
+| Simulation log | `sim/simulation_run.log` |
+| Waveform screenshots | `sim/` |
+| Top-level block diagram | `docs/amtgc_top_block_diagram.png` |
+| Junction controller diagram | `docs/junction_controller_diagram.png` |
+| Technical report | `docs/technical_report.md` |
+| Bug log | `docs/bug_log.md` |
+| Design assumptions | `docs/assumptions.md` |
+| Self-attestation checklist | `docs/self_attestation_checklist.md` |
+| Project overview | `README.md` |
+
+**End of Technical Report**
