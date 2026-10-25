@@ -364,7 +364,7 @@ The design integrates:
 
 The integrated ModelSim verification reported **39 PASS checks, 0 FAIL checks**, and no reported invariant violations during the 1,000-cycle randomized test.
 
-The project includes RTL source files, verification evidence, architectural documentation, and supporting submission materials. Final submission readiness is subject to confirmation of the required repository structure, screenshots, demonstration video, and publicly accessible links.
+The project includes RTL source files, verification evidence, architectural documentation, and supporting submission materials.
 
 ---
 
