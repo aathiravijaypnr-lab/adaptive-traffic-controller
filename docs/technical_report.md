@@ -308,6 +308,7 @@ The repository contains the following simulation evidence:
 | `sim/waveform_normal_operation.png` | Normal traffic signal operation |
 | `sim/waveform_emergency_override.png` | Emergency override behavior |
 | `sim/waveform_ped_arbiter.png` | Pedestrian arbitration behavior |
+| `sim/waveform_adaptive_timing.png` | Adaptive timing behaviour |
 
 These waveform files support the integrated verification results. The final submission must use the exact filenames required by the assignment.
 
