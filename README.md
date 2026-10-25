@@ -28,17 +28,17 @@ The design is simulated and verified using ModelSim.
 
 ```text
 adaptive-traffic-controller/
-│
+├── README.md
 ├── rtl/
 │   ├── amtgc_top.v
 │   ├── junction_controller.v
 │   ├── generic_timer.v
 │   ├── ped_arbiter.v
 │   └── green_wave_sync.v
-│
 ├── tb/
-│   └── amtgc_top_tb.v
-│
+│   ├── amtgc_top_tb.v
+│   ├── generic_timer_tb.v
+│   └── junction_controller_tb.v
 ├── docs/
 │   ├── technical_report.md
 │   ├── bug_log.md
@@ -46,12 +46,12 @@ adaptive-traffic-controller/
 │   ├── self_attestation_checklist.md
 │   ├── amtgc_top_block_diagram.png
 │   └── junction_controller_diagram.png
-│
-├── sim/
-│   ├── transcript
-│   └── waveforms/
-│
-└── README.md
+└── sim/
+    ├── simulation_run.log
+    ├── waveform_normal_operation.png
+    ├── waveform_emergency_override.png
+    ├── waveform_ped_arbiter.png
+    └── waveform_adaptive_timing.png
 ```
 
 
@@ -247,7 +247,7 @@ The latest simulation summary reported for this project is **39 PASS and 0 FAIL*
 
 ## 10. Project Documentation
 
-The `docs/` directory contains the supporting project documents, when included:
+The `docs/` directory contains the following supporting project documents:
 
 | File | Purpose |
 |---|---|
@@ -270,7 +270,7 @@ Deployment in a real traffic-control environment would require additional safety
 
 ---
 
-## 12.## Project Demonstration Video
+## 12. Project Demonstration Video
 
 The demonstration covers the AMTGC architecture, Verilog RTL implementation, ModelSim simulation, and waveform verification.
 
