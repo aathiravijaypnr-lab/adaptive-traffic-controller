@@ -116,37 +116,35 @@ Its main interface includes:
 
 The timer supports configurable counter widths, target changes, stop/restart operation, and zero-target handling.
 
-#### 2.3.2 Junction Controller
+### 2.3.2 Junction Controller
 
-The `junction_controller.v` module implements an eight-state traffic control FSM.
+The `junction_controller.v` module implements the traffic control FSM, including adaptive green timing, pedestrian phase selection, emergency handling, and timer configuration.
 
-Each controller determines traffic phase transitions, adaptive green durations, pedestrian phases, emergency behavior, and the timer count target.
+Both junctions use the same parameterized RTL module. The `IS_JUNCTION_B` parameter enables synchronization-dependent entry into the North–South green phase at Junction B.
 
-Both Junction A and Junction B are instantiated from the same RTL module. The `IS_JUNCTION_B` parameter enables the additional synchronization behavior required at Junction B.
-
-#### 2.3.3 Pedestrian Arbiter
+### 2.3.3 Pedestrian Arbiter
 
 The `ped_arbiter.v` module receives pedestrian requests and junction readiness signals.
 
-It uses a round-robin `turn` register to alternate priority when both junctions are eligible, preventing simultaneous grants.
+A round-robin `turn` register alternates priority when both junctions are eligible, preventing simultaneous grants and supporting fair pedestrian access.
 
-#### 2.3.4 Green-Wave Synchronizer
+### 2.3.4 Green-Wave Synchronizer
 
-The `green_wave_sync.v` module detects Junction A entering the NS-green state.
+The `green_wave_sync.v` module detects Junction A entering the North–South green state and generates a one-cycle synchronization pulse after a configurable delay.
 
-After a configurable delay, it generates a one-cycle synchronization pulse for Junction B.
+This pulse coordinates Junction B's entry into its North–South green phase.
 
 ---
 
 ## 3. Finite State Machine Design
 
-Each junction controller implements eight encoded states.
+Each junction controller implements an eight-state Moore FSM. Traffic phases advance according to timer completion, pedestrian requests, and internal control flags.
 
 ### 3.1 FSM State Table
 
 | State | Encoding | Function |
 | :--- | :---: | :--- |
-| `ST_RESET` | `3'b000` | Reset state with inactive traffic outputs |
+| `ST_RESET` | `3'b000` | Initial reset state |
 | `ST_NS_GREEN` | `3'b001` | North–South green phase |
 | `ST_NS_YELLOW` | `3'b010` | North–South yellow phase |
 | `ST_EW_GREEN` | `3'b011` | East–West green phase |
@@ -155,39 +153,52 @@ Each junction controller implements eight encoded states.
 | `ST_ALL_RED` | `3'b110` | All-red safety interval |
 | `ST_EMERGENCY` | `3'b111` | Emergency override state |
 
-### 3.2 Normal State Transitions
+### 3.2 State Transitions and Pedestrian Handling
 
-The normal phase sequence is:
+Following reset, the controller enters `ST_ALL_RED` before beginning normal traffic operation.
 
-`ST_RESET` → `ST_ALL_RED` → `ST_NS_GREEN` → `ST_NS_YELLOW` → `ST_ALL_RED`
+The main traffic sequence is:
 
-After the NS-yellow clearance interval, the controller selects the appropriate next phase according to its internal flags and pedestrian request status.
+`ST_NS_GREEN` → `ST_NS_YELLOW` → `ST_ALL_RED` → `ST_EW_GREEN` → `ST_EW_YELLOW` → `ST_ALL_RED`
 
-The normal EW sequence is:
+A pedestrian phase may be inserted between the NS-yellow clearance interval and EW-green operation:
 
-`ST_EW_GREEN` → `ST_EW_YELLOW` → `ST_ALL_RED` → `ST_NS_GREEN`
+`ST_NS_YELLOW` → `ST_ALL_RED` → `ST_PED_WALK` → `ST_EW_GREEN`
 
-A pedestrian walk phase may be inserted after a safe all-red interval when an eligible pedestrian request has been accepted.
+The controller retains accepted pedestrian requests through `ped_pending`. Internal flags, including `ped_after_red` and `red_to_ns`, determine the next phase after the all-red interval.
 
-Junction B additionally waits for the synchronization condition before entering NS green when required.
+Junction A can enter NS green once the all-red timer condition is satisfied and `red_to_ns` is asserted. Junction B additionally requires `sync_trigger` or a previously latched `sync_pending` event.
 
-### 3.3 All-Red Safety State
+### 3.3 All-Red Safety and Emergency Handling
 
-The design uses one reusable `ST_ALL_RED` state rather than separate all-red states for NS-to-EW and EW-to-NS transitions.
+A single reusable `ST_ALL_RED` state provides the safety interval between traffic phases. Its timer completion is tracked using `timer_expired` and `red_timer_done`, allowing the controller to retain completion information while waiting for synchronization.
 
-Internal control flags determine the next phase. The all-red timer must complete before the controller exits this state.
+Emergency override takes priority over normal state transitions:
 
-### 3.4 Emergency State
-
-When `emergency_override` is asserted:
-
-- Green, yellow, and pedestrian walk outputs are suppressed immediately through combinational gating.
+- Vehicle green/yellow and pedestrian-walk outputs are immediately suppressed through combinational gating.
 - Both junction controllers enter `ST_EMERGENCY` on the next rising clock edge.
-- The synchronization output is masked.
-- After emergency release, the controllers return through `ST_ALL_RED` before resuming traffic operation.
+- The top-level synchronization output is masked during the override.
+- After emergency release, the controllers return to `ST_ALL_RED` before resuming normal operation.
 
-The FSM uses state-based phase decoding with an additional emergency output mask.
+The RTL does not implement separate red-light output ports; the all-red condition is represented by inactive vehicle green/yellow and pedestrian-walk outputs.
 
+### 3.4 FSM State Transition Diagrams
+
+The following diagrams document the implemented FSM behavior of both junctions.
+
+**Junction A Controller FSM**
+
+![Junction A FSM](junction_a_fsm.png)
+
+Junction A follows timer-controlled traffic transitions without requiring a green-wave synchronization event.
+
+**Junction B Controller FSM**
+
+![Junction B FSM](junction_b_fsm.png)
+
+Junction B uses the same eight states but waits for a synchronization event before entering `ST_NS_GREEN` from `ST_ALL_RED` when `red_to_ns` is asserted. The synchronization event is generated after Junction A enters NS green.
+
+Both diagrams illustrate pedestrian servicing, emergency recovery, and the shared all-red state. Where `ST_ALL_RED` appears twice for readability, both representations refer to the same encoded FSM state.
 ---
 
 ## 4. Adaptive Timing and Synchronization
