@@ -147,7 +147,7 @@ These values represent timer counts or simulation time units according to the ti
 
 ## 6. Junction Controller FSM
 
-Each junction controller implements an eight-state finite state machine.
+Each junction uses an eight-state Moore finite state machine to manage traffic phases, pedestrian crossing, and emergency handling.
 
 | State | Encoding | Description |
 |---|---|---|
@@ -156,16 +156,20 @@ Each junction controller implements an eight-state finite state machine.
 | `ST_NS_YELLOW` | `010` | North–south yellow phase. |
 | `ST_EW_GREEN` | `011` | East–west green phase. |
 | `ST_EW_YELLOW` | `100` | East–west yellow phase. |
-| `ST_PED_WALK` | `101` | Pedestrian-walk phase. |
-| `ST_ALL_RED` | `110` | All vehicle green/yellow outputs are inactive. |
-| `ST_EMERGENCY` | `111` | Emergency-handling state. |
+| `ST_PED_WALK` | `101` | Pedestrian crossing phase. |
+| `ST_ALL_RED` | `110` | All vehicle green/yellow and pedestrian-walk outputs are inactive. |
+| `ST_EMERGENCY` | `111` | Emergency override state. |
 
-The FSM uses timer-expiration events and additional control conditions to determine phase transitions.
+State transitions are controlled by timer expiration, pedestrian requests, and emergency override. Junction B additionally requires a green-wave synchronization event before entering the north–south green phase.
 
-Emergency handling has priority in the state register. While `emg_active` is asserted, the controller disables vehicle green/yellow and pedestrian-walk outputs.
+Emergency override takes priority over normal state transitions and disables all vehicle green/yellow and pedestrian-walk outputs. Dedicated red-light output ports are not implemented; the all-red condition is represented by inactive vehicle green/yellow outputs.
 
-The controller does not expose dedicated red-light output ports. The all-red condition is represented by the vehicle green/yellow outputs being inactive.
+### FSM State Diagrams
 
+The diagrams below illustrate the implemented state transitions for each junction:
+
+- **[Junction A FSM Diagram](docs/junction_a_fsm.png)** — Independent traffic-phase operation.
+- **[Junction B FSM Diagram](docs/junction_b_fsm.png)** — Includes green-wave synchronization with Junction A.
 ---
 
 ## 7. Prerequisites
