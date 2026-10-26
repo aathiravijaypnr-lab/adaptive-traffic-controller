@@ -261,7 +261,7 @@ The `docs/` directory contains the following supporting project documents:
 | `amtgc_top_block_diagram.png` | Top-level system architecture diagram. |
 | `junction_controller_diagram.png` | Junction-controller block diagram. |
 | `junction_a_fsm.png` | Junction A controller FSM diagram. |
-| `junction_b_fsm.png` | Junction B controller FSM diagram. |
+| `junction_b_fsm.png` | Junction B controller FSM diagram including green-wave synchronization.  |
 
 ---
 
