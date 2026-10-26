@@ -394,6 +394,8 @@ The project includes RTL source files, verification evidence, architectural docu
 | Waveform screenshots | `sim/` |
 | Top-level block diagram | `docs/amtgc_top_block_diagram.png` |
 | Junction controller diagram | `docs/junction_controller_diagram.png` |
+| Junction A FSM diagram | `docs/junction_a_fsm.png` |
+| Junction B FSM diagram | `docs/junction_b_fsm.png` |
 | Technical report | `docs/technical_report.md` |
 | Bug log | `docs/bug_log.md` |
 | Design assumptions | `docs/assumptions.md` |
