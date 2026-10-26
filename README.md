@@ -45,7 +45,9 @@ adaptive-traffic-controller/
 │   ├── assumptions.md
 │   ├── self_attestation_checklist.md
 │   ├── amtgc_top_block_diagram.png
-│   └── junction_controller_diagram.png
+│   ├── junction_controller_diagram.png
+│   ├── junction_a_fsm.png
+│   └── junction_b_fsm.png
 └── sim/
     ├── simulation_run.log
     ├── waveform_normal_operation.png
