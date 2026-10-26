@@ -184,21 +184,26 @@ The RTL does not implement separate red-light output ports; the all-red conditio
 
 ### 3.4 FSM State Transition Diagrams
 
-The following diagrams document the implemented FSM behavior of both junctions.
+The following diagrams illustrate the implemented state transitions of Junction A and Junction B, including timer-controlled traffic phases, pedestrian handling, and emergency recovery.
 
 **Junction A Controller FSM**
 
 ![Junction A FSM](junction_a_fsm.png)
 
-Junction A follows timer-controlled traffic transitions without requiring a green-wave synchronization event.
+*Figure 2: Junction A Controller FSM State Transition Diagram*
+
+Junction A operates independently of the green-wave synchronization signal. Its state transitions depend on timer completion, pedestrian requests, and emergency override.
 
 **Junction B Controller FSM**
 
 ![Junction B FSM](junction_b_fsm.png)
 
-Junction B uses the same eight states but waits for a synchronization event before entering `ST_NS_GREEN` from `ST_ALL_RED` when `red_to_ns` is asserted. The synchronization event is generated after Junction A enters NS green.
+*Figure 3: Junction B Controller FSM State Transition Diagram*
 
-Both diagrams illustrate pedestrian servicing, emergency recovery, and the shared all-red state. Where `ST_ALL_RED` appears twice for readability, both representations refer to the same encoded FSM state.
+Junction B uses the same eight-state FSM but additionally requires a synchronization trigger or a previously latched synchronization event before entering the North–South green phase from the all-red state.
+
+**Note:** Both diagrams show the reusable `ST_ALL_RED (110)` state at two positions for visual clarity. These represent the same FSM state, not separate states.
+
 ---
 
 ## 4. Adaptive Timing and Synchronization
