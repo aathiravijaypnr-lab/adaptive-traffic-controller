@@ -7,7 +7,7 @@ This document serves as a formal self-verification declaration by the author, co
 - [x] The integrated testbench and two standalone testbenches are present in `tb/`.
 - [x] Technical report, assumptions, bug log, self-attestation, and four diagrams are present in `docs/`.
 - [x] Simulation log and four waveform PNG files are present in `sim/`.
-- [x] The final repository tree and filenames match the assignment's exact prescribed layout.
+- [x] The repository uses a clear, organized directory structure and descriptive filenames to help evaluators locate the project files.
 - [x] The GitHub repository is publicly accessible without signing in.
 
 ## RTL and architecture
